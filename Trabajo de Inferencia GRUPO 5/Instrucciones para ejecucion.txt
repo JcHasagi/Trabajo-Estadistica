@@ -1,0 +1,128 @@
+===============================================================================
+  PRIMER TRABAJO ESTADISTICA II - INFERENCIA ESTADISTICA
+  GEIH 2025 (mayo, junio y julio) - Nivel de agregacion: VIVIENDA
+  Informe final y sintaxis reproducible en R
+===============================================================================
+
+
+CONTENIDO
+-------------------------------------------------------------------------------
+  Primer Trabajo Estadistica II - Fase 3.docx   El informe final
+  00_ejecutar_todo.R                            Corre los siete scripts en orden
+  01b_construccion_estilo_docente.R             Construye la base y el diccionario
+  03_descriptivos_fase3.R                       Descriptivos y frecuencias de V4
+  04_graficos_log_arriendo.R                    Graficos 1 a 5   (V3 y su logaritmo)
+  05_graficos_educacion_superior.R              Graficos 6 a 9   (V1)
+  06_graficos_v2_mujeres.R                      Graficos 10 a 13 (V2)
+  07_graficos_v4_analfabetismo.R                Graficos 14 a 16 (V4)
+  08_estimadores_simulacion.R                   Estimadores, intervalos y simulacion
+  09_graficos_consistencia.R                    Graficos 17 a 20 (consistencia)
+
+  No se incluyen los datos ni la carpeta de salidas: el codigo los genera.
+
+
+COMO EJECUTARLO
+-------------------------------------------------------------------------------
+  1. Copie los diez archivos a la carpeta que contiene los microdatos, es decir
+     la que tiene dentro las carpetas:
+
+         Mayo 2025/CSV/
+         Junio 2025/CSV/
+         Julio 2025/CSV/
+
+     Los scripts usan RUTAS RELATIVAS, de modo que no importa como se llame esa
+     carpeta ni en que disco este.
+
+  2. Instale los dos paquetes que necesita el script de construccion. Los demas
+     usan R base, sin dependencias:
+
+         install.packages(c("readr", "dplyr"))
+
+  3. Ponga el directorio de trabajo en esa carpeta. En RStudio:
+         Session > Set Working Directory > To Source File Location
+     o bien, escribiendo la ruta a mano:
+         setwd("ruta/de/la/carpeta")
+
+  4. Ejecute:
+
+         source("00_ejecutar_todo.R", encoding = "UTF-8")
+
+     Tarda entre 10 y 20 minutos. La mayor parte se la llevan el script 08
+     (simulacion con B = 10.000 replicas) y el 09.
+
+  Los scripts tambien funcionan por separado, en el orden de su numeracion.
+  El 00 no contiene ningun calculo propio: es solo una comodidad.
+  Los scripts 03 a 09 necesitan que 01b se haya corrido antes, porque leen la
+  base que el produce. Si falta, se detienen con un mensaje que lo indica.
+
+
+QUE PRODUCE
+-------------------------------------------------------------------------------
+  salidas/base_directorio_mes.csv y .rds              72.737 filas x 23 columnas
+                                                      (una fila por vivienda)
+  salidas/base_departamento_mes.csv y .rds            99 filas x 29 columnas
+                                                      (una fila por DPTO + MES)
+  salidas/diccionario_variables_derivadas.csv y .rds  23 variables documentadas
+  salidas/fase3_descriptivos.csv                      Descriptivos de V1, V2 y V3
+  salidas/fase3_frecuencias_v4.csv                    Frecuencias de V4
+  salidas/fase3_estimadores_puntuales.csv             Estimadores e intervalos
+  salidas/fase3_simulacion.csv                        Resultados de la simulacion
+  salidas/graficos/                                   20 archivos PNG
+
+
+LAS CUATRO VARIABLES
+-------------------------------------------------------------------------------
+  Unidad de analisis: la VIVIENDA, identificada por PERIODO + MES + DIRECTORIO.
+
+  CUANTITATIVAS
+    prop_educ_superior_18mas    Proporcion de adultos de la vivienda con
+                                formacion tecnica profesional o superior.
+                                Tabla 10, campos P3042 y POB_MAY18.
+    prop_mujeres_adultas        Proporcion de adultos que se reconocen como
+                                mujeres. Tabla 10, campo P3039.
+    arriendo_mensual_vivienda   Arriendo mensual que paga la vivienda, en pesos.
+                                Tabla 01, campos P5090 y P5140.
+                                Se construye ademas log_arriendo_mensual, la
+                                columna auxiliar en escala logaritmica.
+
+  CUALITATIVA
+    presencia_analfabetismo     Si hay o no en la vivienda al menos una persona
+                                que no sabe leer ni escribir. Tabla 10, P6160.
+
+
+QUE COMPRUEBA EL CODIGO AL CORRER
+-------------------------------------------------------------------------------
+  Todo esto se imprime en consola y detiene la ejecucion si algo falla:
+
+    - Que los seis archivos existan desde el directorio de trabajo.
+    - La codificacion de cada archivo, leyendo sus bytes crudos, sin suponerla.
+    - Que no haya archivos .DTA ni .SAV en las carpetas de mes: un solo formato.
+    - Que la columna MES de cada archivo traiga el codigo esperado, 05, 06 o 07.
+    - Que los encabezados sean identicos en los tres meses.
+    - Que existan todos los campos requeridos, antes de seleccionar columnas.
+    - Los dominios de P3042, P3039, P6160, POB_MAY18 y P5090 contra el
+      diccionario, y los tres saltos de patron documentados.
+    - Que HOGAR coincida con SECUENCIA_P, y que DPTO y CLASE tengan un solo
+      valor dentro de cada PERIODO + MES + DIRECTORIO.
+    - La unicidad de la llave de persona, la de hogar, la de cada resumen antes
+      de unir y la de la base despues de unir.
+    - La union, validada por dplyr con relationship = "one-to-one".
+    - Los rangos de las cuatro variables y la coherencia del logaritmo.
+
+
+NOTAS DE METODO
+-------------------------------------------------------------------------------
+  - Cada tabla se resume por separado al nivel de vivienda ANTES de unirla.
+    Nunca se unen tablas de personas entre si.
+  - Los codigos especiales y los faltantes estructurales van a NA, NUNCA a cero.
+    El codigo 99 de P3042 sale del numerador y del denominador; los codigos 98 y
+    99 de P5140 se excluyen; las viviendas sin adultos quedan en NA.
+  - El factor de expansion FEX_C18 se conserva en la base pero NO se aplica:
+    expande a personas del total nacional, no a viviendas.
+  - Los estimadores e intervalos de arriendo_mensual_vivienda se calculan sobre
+    la escala logaritmica. El parametro estimado es mu = E[log(arriendo)], no la
+    media del arriendo, y exp() sobre ese intervalo devuelve un intervalo para
+    la media geometrica, no para la media aritmetica.
+  - La simulacion usa muestreo CON reemplazo, B = 10.000 replicas y semilla
+    fija set.seed(2026), de modo que es reproducible exactamente.
+===============================================================================
