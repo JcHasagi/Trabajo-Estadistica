@@ -151,6 +151,9 @@ for (ej in seq_len(R_EJEC)) for (v in names(POB)) for (B in BS) {
     var_media          = var(r$media),
     err_MC_var_media   = ee_var(r$media),
     prop_med_igual_pob = mean(r$mediana == pv$mediana),
+    var_mediana        = var(r$mediana),
+    razon_var          = if (var(r$media) > 0) var(r$mediana) / var(r$media) else NA,
+    n_med_distinta     = sum(r$mediana != pv$mediana),
     row.names = NULL))
 }
 
@@ -169,6 +172,18 @@ if (!isTRUE(all.equal(e1$prom_media, r08$prom_media)) ||
 #    mismo que el del sesgo, porque mu no cambia).
 #    err_MC = promedio de los tres errores de Monte Carlo.
 # ---------------------------------------------------------------------------
+# Primera cifra decimal en que difieren los promedios de las ejecuciones,
+# comparando sus cifras escritas (asi cuenta tambien el acarreo: 0,33249 y
+# 0,33251 difieren desde la cuarta, aunque el rango sea del orden de 10^-5).
+decimal_dif <- function(p) {
+  s   <- formatC(p, format = "f", digits = 12)
+  ent <- sub("[.].*$", "", s)
+  if (length(unique(ent)) > 1) return(0)
+  m <- do.call(rbind, strsplit(sub("^[^.]*[.]", "", s), ""))
+  k <- which(apply(m, 2, function(z) length(unique(z)) > 1))
+  if (length(k)) k[1] else NA
+}
+
 TAB <- data.frame()
 for (v in names(POB)) for (B in BS) {
   z <- EJEC[EJEC$variable == v & EJEC$B == B, ]
@@ -186,6 +201,12 @@ for (v in names(POB)) for (B in BS) {
   fila$rango_var_en_err_MC <- fila$rango_var / fila$err_MC_var
   fila$supera_95_var       <- fila$rango_var_en_err_MC > LIM95
   for (ej in seq_len(R_EJEC)) fila[[paste0("med_igual_ej", ej)]] <- z$prop_med_igual_pob[ej]
+  # Razon var_mediana / var_media y replicas con la mediana distinta de la
+  # poblacional en cada ejecucion. En V3 la varianza de la mediana la producen
+  # solo esas pocas replicas: la razon cambia mucho de una ejecucion a otra.
+  for (ej in seq_len(R_EJEC)) fila[[paste0("razon_var_ej", ej)]] <- z$razon_var[ej]
+  for (ej in seq_len(R_EJEC)) fila[[paste0("n_med_dist_ej", ej)]] <- z$n_med_distinta[ej]
+  fila$decimal_dif         <- decimal_dif(z$prom_media)
   TAB <- rbind(TAB, fila)
 }
 
@@ -252,7 +273,7 @@ cat(sprintf("\nRango/EE promedio: %s (esperado por azar: %s). Filas que superan 
 #                  significativas como potencia de 10 (2,27 x 10^-6, con el
 #                  signo de multiplicar y superindices); 0 exacto -> "0"
 #   tipo "pct"   : proporcion escrita como porcentaje con 2 decimales y " %"
-#   tipo "razon" : 1 decimal y punto de miles
+#   tipo "razon" : 1 decimal y punto de miles ("razon2": 2 decimales)
 #   tipo "entero": sin decimales y con punto de miles
 #   Negativos con el signo menos tipografico; "no definida" si no existe.
 utf8  <- function(...) rawToChar(as.raw(c(...)))
@@ -280,6 +301,7 @@ fmt_informe <- function(x, tipo = "num") {
     entero = formatC(round(a), format = "d", big.mark = ".", decimal.mark = ","),
     pct    = paste0(coma(100 * a, 2), " %"),
     razon  = coma(a, 1),
+    razon2 = coma(a, 2),
     num    = if (a == 0) "0" else if (signif(a, 3) >= 0.001) coma(a, 6) else
                pot10(log10(signif(a, 3))))
   if (grepl("^0[,0]*( %)?$", txt)) signo <- ""   # sin "-0,0"
@@ -314,10 +336,9 @@ for (i in seq_len(nrow(TAB))) {
              paste0("error de Monte Carlo del promedio, s/raiz(B), media de las tres ejecuciones", txtB)),
     fila_val(paste0(pref, "rango_en_err_MC"), z$rango_en_err_MC, "razon",
              paste0("rango / err_MC (por azar: 1,7 en promedio; 3,3 o mas en el 5 % de los casos)", txtB)),
-    fila_val(paste0(pref, "decimal_dif"),
-             if (z$rango > 0) ceiling(-log10(z$rango)) else NA, "entero",
-             paste0("posicion decimal de la primera cifra significativa del rango",
-                    " (desde que decimal difieren las ejecuciones)", txtB)),
+    fila_val(paste0(pref, "decimal_dif"), z$decimal_dif, "entero",
+             paste0("primera cifra decimal en que difieren los promedios escritos",
+                    " de las tres ejecuciones", txtB)),
     fila_val(paste0(pref, "rango_var"), z$rango_var, "num",
              paste0("rango de las tres varianzas de las replicas", txtB)),
     fila_val(paste0(pref, "err_MC_var"), z$err_MC_var, "num",
@@ -328,6 +349,21 @@ for (i in seq_len(nrow(TAB))) {
              min(z$med_igual_ej1, z$med_igual_ej2, z$med_igual_ej3), "pct",
              paste0("minimo en las tres ejecuciones de las replicas con mediana muestral",
                     " = mediana poblacional", txtB)))
+  for (ej in seq_len(R_EJEC)) {
+    quien <- if (ej == 1) "ejecucion 1, la del 08 y del informe" else paste("ejecucion", ej)
+    VAL <- rbind(VAL,
+      fila_val(paste0(pref, "razon_var_", ej), z[[paste0("razon_var_ej", ej)]], "razon2",
+               paste0("var_mediana / var_media, ", quien, txtB)),
+      fila_val(paste0(pref, "n_med_distinta_", ej), z[[paste0("n_med_dist_ej", ej)]], "entero",
+               paste0("replicas con la mediana muestral distinta de la poblacional, ",
+                      quien, txtB)))
+  }
+  rv <- c(z$razon_var_ej1, z$razon_var_ej2, z$razon_var_ej3)
+  VAL <- rbind(VAL,
+    fila_val(paste0(pref, "razon_var_min"), if (all(is.na(rv))) NA else min(rv, na.rm = TRUE),
+             "razon2", paste0("minimo de var_mediana / var_media en las tres ejecuciones", txtB)),
+    fila_val(paste0(pref, "razon_var_max"), if (all(is.na(rv))) NA else max(rv, na.rm = TRUE),
+             "razon2", paste0("maximo de var_mediana / var_media en las tres ejecuciones", txtB)))
 }
 VAL <- rbind(VAL,
   fila_val("ej_n_ejecuciones", R_EJEC, "entero",
@@ -347,7 +383,12 @@ VAL <- rbind(VAL,
   fila_val("ej_filas_supera_95_var", sum(TAB$supera_95_var), "entero",
            "filas en que rango_var_en_err_MC supera ej_limite_95 (varianza de las replicas)"),
   fila_val("ej_factor_err_MC", sqrt(max(BS) / min(BS)), "razon",
-           "factor en que baja el error de Monte Carlo del menor al mayor B, raiz(Bmax/Bmin)"))
+           "factor en que baja el error de Monte Carlo del menor al mayor B, raiz(Bmax/Bmin)"),
+  # Debe coincidir con la clave fecha_ejecucion_08 de fase3_valores_informe.csv:
+  # si no coincide, el 08 se volvio a correr despues del 10.
+  fila_val("ej_fecha_08", NA, "num",
+           "fecha de la ejecucion del 08 que se leyo (la de salidas/fase3_distribuciones.rds)",
+           valor = format(SIM$fecha, "%Y-%m-%d %H:%M:%OS3")))
 
 comillas <- function(z) paste0('"', gsub('"', '""', z, fixed = TRUE), '"')
 num_csv  <- ifelse(is.na(VAL$valor_num), "NA",
@@ -383,7 +424,7 @@ cat("3. Con el mayor B, las ejecuciones difieren a partir del decimal:\n")
 for (v in names(POB)) {
   z <- TAB[TAB$variable == v & TAB$B == max(BS), ]
   cat(sprintf("     %s: %s  (rango %s; error de Monte Carlo %s)\n", v,
-              if (z$rango > 0) ceiling(-log10(z$rango)) else "-",
+              if (is.na(z$decimal_dif)) "-" else z$decimal_dif,
               coma(z$rango, dig_s), coma(z$err_MC, dig_s)))
 }
 cat("4. Mediana muestral igual a la poblacional (minimo de las tres ejecuciones,\n")
@@ -391,3 +432,10 @@ cat("   mayor B):", paste(sprintf("%s %s %%", TAB$variable[TAB$B == max(BS)],
                                  coma(100 * pmin(TAB$med_igual_ej1, TAB$med_igual_ej2,
                                                  TAB$med_igual_ej3)[TAB$B == max(BS)], 2)),
                          collapse = " - "), "\n")
+z3 <- TAB[TAB$variable == "V3" & TAB$B == max(BS), ]
+cat(sprintf("5. V3, mayor B: var_mediana / var_media = %s, %s y %s en las tres ejecuciones\n",
+            coma(z3$razon_var_ej1, 2), coma(z3$razon_var_ej2, 2), coma(z3$razon_var_ej3, 2)))
+cat(sprintf("   (replicas con la mediana distinta: %d, %d y %d). Esa razon depende de\n",
+            z3$n_med_dist_ej1, z3$n_med_dist_ej2, z3$n_med_dist_ej3))
+cat("   pocas replicas y no permite ordenar media y mediana por su varianza; el\n")
+cat("   ECM frente a mu, dominado por el sesgo de la mediana, si es estable.\n")

@@ -155,9 +155,7 @@ hist(lv, breaks = 45, col = BARRA, border = BORDE,
 eje_y_miles()
 axis(1, at = log(c(1e4, 1e5, 1e6, 1e7, 1e8)),
      labels = c("10 mil", "100 mil", "1 M", "10 M", "100 M"), cex.axis = 0.85)
-dev.off()
-
-par(mfrow = c(1, 1))
+dev.off()   # cierra el png; su par(mfrow) se descarta con el dispositivo
 
 
 # ---------------------------------------------------------------------------

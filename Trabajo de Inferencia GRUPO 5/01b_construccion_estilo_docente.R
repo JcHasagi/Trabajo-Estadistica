@@ -26,7 +26,7 @@
 # =====================================================================
 
 
-#### Comprobación previa: rutas y codificación
+#### Comprobacion previa: rutas y codificacion
 
 options(scipen = 999)   # sin notacion cientifica: 400000, nunca 4e+05.
                         # Se fija aqui para que la salida no dependa del
@@ -70,7 +70,8 @@ cat("  archivos leidos por este script (los 6, todos .CSV):\n")
 cat(paste0("    ", c(file.path(RUTA, MESES, "CSV", ARCH_CG),
                      file.path(RUTA, MESES, "CSV", ARCH_HV))), sep = "\n")
 cat("\n")
-stopifnot(length(otros_formatos) == 0)
+stopifnot("Hay archivos .DTA o .SAV en las carpetas de mes (mezclar formatos duplica registros)" =
+            length(otros_formatos) == 0)
 
 # --- Codificacion: se COMPRUEBA archivo por archivo, no se asume -------------
 # El enunciado pide que el codigo compruebe la codificacion de cada mes y no
@@ -116,7 +117,7 @@ if (all(cod$codificacion == "ASCII"))
 enc_lectura <- function(e) if (e == "UTF-8") "UTF-8" else "latin1"
 
 
-#### Importación de Datos
+#### Importacion de Datos
 
 library(readr)
 
@@ -159,7 +160,7 @@ for (m in MESES) {
   cat(sprintf("  %-11s MES en los datos: personas = %-4s hogares = %-4s (esperado %s)  %s\n",
               m, paste(mp, collapse = ","), paste(mh, collapse = ","),
               CODIGOS[m], if (ok) "OK" else "AVISO"))
-  stopifnot(ok)
+  stopifnot("La columna MES del archivo no coincide con la carpeta del mes (ver AVISO)" = ok)
 }
 per_todos <- unlist(lapply(CG, function(d) d$PERIODO))
 cat(sprintf("  PERIODO (semana de recoleccion) va de %s a %s\n",
@@ -180,10 +181,11 @@ library(dplyr)
 
 # --- Los encabezados deben ser identicos en los tres meses -------------------
 # Si no lo fueran, apilarlos seria invalido. Se comprueba antes de seleccionar.
-stopifnot(identical(names(general_mayo),  names(general_junio)))
-stopifnot(identical(names(general_mayo),  names(general_julio)))
-stopifnot(identical(names(vivienda_mayo), names(vivienda_junio)))
-stopifnot(identical(names(vivienda_mayo), names(vivienda_julio)))
+stopifnot(
+  "Encabezados de personas distintos entre mayo y junio" = identical(names(general_mayo),  names(general_junio)),
+  "Encabezados de personas distintos entre mayo y julio" = identical(names(general_mayo),  names(general_julio)),
+  "Encabezados de hogares distintos entre mayo y junio"  = identical(names(vivienda_mayo), names(vivienda_junio)),
+  "Encabezados de hogares distintos entre mayo y julio"  = identical(names(vivienda_mayo), names(vivienda_julio)))
 cat("\nEncabezados identicos en los 3 meses:", ncol(general_mayo), "columnas en la\n",
     "tabla de personas y", ncol(vivienda_mayo), "en la de hogares.\n")
 
@@ -210,6 +212,16 @@ vivienda <- bind_rows(vivienda_mayo, vivienda_junio, vivienda_julio) %>%
 cat("Columnas conservadas:", ncol(general), "de personas y", ncol(vivienda),
     "de hogares.\n")
 cat("Filas: personas", nrow(general), "| hogares", nrow(vivienda), "\n")
+
+# --- Factor de expansion: suma por mes (cifra citada en el informe) ---------
+# FEX_C18 expande a PERSONAS del total nacional; por eso no se aplica a la
+# vivienda. Su suma por mes muestra a que poblacion expande.
+fex <- as.numeric(gsub(",", ".", general$FEX_C18, fixed = TRUE))
+stopifnot("FEX_C18 tiene vacios o valores no numericos" = !anyNA(fex))
+s_fex <- tapply(fex, general$MES, sum)
+cat(sprintf("Suma de FEX_C18, mes %s: %s millones de personas\n", names(s_fex),
+            formatC(s_fex / 1e6, format = "f", digits = 1, decimal.mark = ",")),
+    sep = "")
 
 # --- Dominios: se verifican ANTES de recodificar -----------------------------
 # Dominios tal como los documenta el diccionario. Cualquier valor fuera de esta
@@ -275,7 +287,8 @@ cat("  DPTO  con un solo valor por PERIODO+MES+DIRECTORIO:",
 cat("  CLASE con un solo valor por PERIODO+MES+DIRECTORIO:",
     all(const_viv$n_clase == 1),
     sprintf("(maximo observado: %d)\n", max(const_viv$n_clase)))
-stopifnot(all(const_viv$n_dpto == 1), all(const_viv$n_clase == 1))
+stopifnot("DPTO no es constante dentro de la vivienda"  = all(const_viv$n_dpto == 1),
+          "CLASE no es constante dentro de la vivienda" = all(const_viv$n_clase == 1))
 
 # --- Unicidad de las llaves ANTES de unir ------------------------------------
 k_per <- paste(general$PERIODO, general$MES, general$DIRECTORIO,
@@ -287,7 +300,8 @@ cat("  llave de persona unica :", !any(duplicated(k_per)),
     sprintf("(%d duplicados en %d filas)\n", sum(duplicated(k_per)), length(k_per)))
 cat("  llave de hogar unica   :", !any(duplicated(k_hog)),
     sprintf("(%d duplicados en %d filas)\n", sum(duplicated(k_hog)), length(k_hog)))
-stopifnot(!any(duplicated(k_per)), !any(duplicated(k_hog)))
+stopifnot("Llave de persona duplicada (PERIODO+MES+DIRECTORIO+SECUENCIA_P+ORDEN)" = !any(duplicated(k_per)),
+          "Llave de hogar duplicada (PERIODO+MES+DIRECTORIO+SECUENCIA_P)"         = !any(duplicated(k_hog)))
 
 # --- Marcas a nivel persona, antes de resumir --------------------------------
 # adulto: 18 anios o mas.
@@ -319,7 +333,7 @@ cat("\n  adultos con P3039 = 3 o 4 (en den_gen, no en num_muj):",
 #   P5090 = "La vivienda ocupada por este hogar es:"; codigo 3 = "En arriendo o
 #           subarriendo", que define el universo.
 #   P5140 = "Cuanto pagan mensualmente por arriendo?"; regla documentada, literal:
-#           "Rango > 1000 o 98 o 99" — estrictamente MAYOR que 1.000.
+#           "Rango > 1000 o 98 o 99" - estrictamente MAYOR que 1.000.
 # Verificado sobre los 29.816 hogares: ningun valor es exactamente 1.000, asi que
 # la regla estricta y la no estricta dan el mismo resultado; se usa la estricta
 # por fidelidad al diccionario. Los codigos 98 ("No sabe") y 99 ("No informa")
@@ -332,7 +346,8 @@ vivienda <- vivienda %>%
   )
 
 # El universo de P5140 son EXACTAMENTE los hogares en arriendo. Se verifica.
-stopifnot(all(!is.na(vivienda$arr) == (vivienda$P5090 == "3")))
+stopifnot("P5140 respondido fuera de los hogares en arriendo (P5090 = 3), o faltante en alguno de ellos" =
+            all(!is.na(vivienda$arr) == (vivienda$P5090 == "3")))
 
 # Cifras que cita el informe sobre ese universo: hogares en arriendo y cuantos
 # responden 98 o 99. Tambien cuantos reportan exactamente 1.000 u otro monto de
@@ -387,7 +402,8 @@ cat("  res_personas: una fila por vivienda :", !any(duplicated(kp)),
     sprintf("(%d viviendas)\n", nrow(res_personas)))
 cat("  res_hogares : una fila por vivienda :", !any(duplicated(kh)),
     sprintf("(%d viviendas)\n", nrow(res_hogares)))
-stopifnot(!any(duplicated(kp)), !any(duplicated(kh)))
+stopifnot("El resumen de personas tiene mas de una fila por vivienda" = !any(duplicated(kp)),
+          "El resumen de hogares tiene mas de una fila por vivienda"  = !any(duplicated(kh)))
 
 # --- Union CON VALIDACION DE CARDINALIDAD ------------------------------------
 # La sintaxis de ejemplo del docente usa plyr::join_all, que no valida nada.
@@ -412,7 +428,8 @@ cat("  llave unica            :", !any(duplicated(kb)),
     sprintf("(%d duplicados)\n", sum(duplicated(kb))))
 cat("  la union no multiplico filas:", nrow(base) == n_antes,
     sprintf("(%d -> %d)\n", n_antes, nrow(base)))
-stopifnot(!any(duplicated(kb)), nrow(base) == n_antes)
+stopifnot("La llave de vivienda se duplico al unir"     = !any(duplicated(kb)),
+          "La union multiplico o perdio filas de vivienda" = nrow(base) == n_antes)
 
 # --- Construccion de las cuatro variables ------------------------------------
 # OJO con la diferencia frente a la sintaxis de ejemplo: alli los faltantes se
@@ -471,7 +488,7 @@ base_directorio_mes <- base %>%
   as.data.frame()
 
 
-#### Verificación
+#### Verificacion
 
 base_directorio_mes %>% tibble() %>% summary()
 
@@ -600,7 +617,7 @@ cat("Cubre TODAS las columnas de la base:",
              names(base_directorio_mes)), "\n")
 
 
-#### Agregación departamental  (base_departamento_mes)
+#### Agregacion departamental  (base_departamento_mes)
 
 # Producto auxiliar: una fila por DPTO + MES. No se usa en la Fase 3, pero se
 # reproduce para que esta sintaxis pueda reemplazar por completo a la anterior.
@@ -672,7 +689,7 @@ cat("  Las proporciones de V4 suman 1 en cada DPTO+MES: ",
             base_departamento_mes$prop_con_analf - 1) < 1e-9), "\n")
 
 
-#### Comparación contra la base ya verificada
+#### Comparacion contra la base ya verificada
 
 # Compara columna por columna contra salidas/base_directorio_mes.rds ANTES de
 # exportar, de modo que la comparacion sea contra la version anterior.
@@ -706,7 +723,7 @@ if (file.exists(f_viejo)) {
 }
 
 
-#### Comparación de la base departamental
+#### Comparacion de la base departamental
 
 f_viejo_d <- file.path(RUTA_SALIDA, "base_departamento_mes.rds")
 if (file.exists(f_viejo_d)) {
@@ -741,7 +758,7 @@ cat(sprintf("\n  RESULTADO: %d columnas con diferencias.\n", n_dif_d))
 } else cat("\nNo hay base departamental anterior con que comparar.\n")
 
 
-#### Exportación
+#### Exportacion
 
 # CSV con separador ";" y decimal "," (convencion del DANE, abre bien en Excel
 # en espanol). RDS conserva tipos y factores.

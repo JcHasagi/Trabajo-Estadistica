@@ -496,6 +496,7 @@ fmt_informe <- function(x, tipo = "num") {
     entero = formatC(round(a), format = "d", big.mark = ".", decimal.mark = ","),
     pct    = paste0(coma(100 * a, 2), " %"),
     razon  = coma(a, 1),
+    razon2 = coma(a, 2),
     num    = if (a == 0) "0" else if (signif(a, 3) >= 0.001) coma(a, 6) else
                pot10(log10(signif(a, 3))))
   if (grepl("^0[,0]*( %)?$", txt)) signo <- ""   # sin "-0,0"
@@ -562,7 +563,7 @@ COLS_SIM <- c(
   sesgo_mediana_vs_mu = "num|sesgo de la mediana frente a mu: prom_mediana - mu",
   mse_media_vs_mu     = "num|ECM de la media frente a mu",
   mse_mediana_vs_mu   = "num|ECM de la mediana frente a mu",
-  razon_var           = "razon|var_mediana / var_media",
+  razon_var           = "razon2|var_mediana / var_media (2 decimales: decide de que lado de 1 queda)",
   razon_mse           = "razon|mse_mediana_vs_mu / mse_media_vs_mu",
   n_med_distinta      = "entero|replicas en que la mediana muestral NO fue la mediana poblacional")
 for (i in seq_len(nrow(sim))) {
