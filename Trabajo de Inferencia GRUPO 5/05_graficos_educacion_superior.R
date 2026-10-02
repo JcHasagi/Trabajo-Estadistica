@@ -4,6 +4,7 @@
 #
 # Requisitos: ninguno. R base, sin paquetes.
 # Modo de uso: source() completo, o pegar bloque por bloque en la consola.
+# Insumo: salidas/base_directorio_mes.rds (generado por 01b_construccion_estilo_docente.R)
 # Salida: PNG en salidas/graficos/
 #
 # NOTA DE FORMA - por que estos graficos y no otros:
@@ -13,7 +14,8 @@
 # automaticos sugiere una continuidad que no existe y esconde que 0 y 1 son
 # valores puntuales, no rangos. Por eso el grafico principal es de agujas
 # (una linea por valor observado, en su posicion real del eje) y el
-# histograma se incluye aparte, con intervalos fijos y declarados.
+# histograma (grafico 07), con intervalos fijos y declarados, se produce
+# como apoyo; no se incluye en el informe.
 # ============================================================================
 
 
@@ -31,8 +33,8 @@ options(scipen = 999)   # sin notacion cientifica: 400000, nunca 4e+05.
 
 RUTA        <- "."
 RUTA_SALIDA <- file.path(RUTA, "salidas")
-if (!dir.exists(RUTA_SALIDA))
-  stop("No encuentro la carpeta 'salidas/' desde el directorio de trabajo actual (",
+if (!file.exists(file.path(RUTA_SALIDA, "base_directorio_mes.rds")))
+  stop("No encuentro 'salidas/base_directorio_mes.rds' desde el directorio de trabajo actual (",
        getwd(), "). Corre antes 01b_construccion_estilo_docente.R.")
 
 base_directorio_mes <- readRDS(file.path(RUTA_SALIDA, "base_directorio_mes.rds"))
@@ -53,6 +55,12 @@ EJE   <- "#4D4D4D"
 # asi que su color va de claro a oscuro en un solo tono, no en tonos sueltos.
 AZ <- c("#DEEBF7", "#9ECAE1", "#4292C6", "#08519C")
 
+# Rotulos calculados, no escritos a mano: si cambia la base, cambian solos.
+pct_lab <- function(p, dig = 1) paste0(formatC(100 * p, format = "f", digits = dig,
+                                               decimal.mark = ","), " %")
+num_lab <- function(z, dig = 4) formatC(z, format = "f", digits = dig,
+                                        big.mark = ".", decimal.mark = ",")
+
 
 # ---------------------------------------------------------------------------
 # 1. GRAFICO PRINCIPAL: AGUJAS EN LOS VALORES REALMENTE OBSERVADOS
@@ -72,15 +80,17 @@ plot(val, fre, type = "h", lwd = 4, col = BARRA, xlim = c(-0.03, 1.03),
      font.main = 1, cex.main = 1.05,
      xlab = "Proporcion dentro de la vivienda", ylab = "Viviendas")
 axis(1, at = seq(0, 1, 0.25), labels = c("0", "0,25", "0,50", "0,75", "1"))
-axis(2, at = seq(0, 40000, 10000),
-     labels = format(seq(0, 40000, 10000), big.mark = ".", decimal.mark = ",", trim = TRUE))
+ay <- pretty(c(0, max(fre)))   # con los datos reales: 0 a 40.000 de 10.000 en 10.000
+axis(2, at = ay, labels = format(ay, big.mark = ".", decimal.mark = ",", trim = TRUE))
 
 # Etiquetas directas solo en los dos modos y en el tercer valor: no en todos.
-text(0,      fre[val == 0]      , "53,6 %", pos = 3, cex = 0.8, col = EJE)
-text(1,      fre[val == 1]      , "21,6 %", pos = 3, cex = 0.8, col = EJE)
-text(0.5,    fre[abs(val - 0.5) < 1e-9], "11,8 %", pos = 3, cex = 0.8, col = EJE)
+text(0,   fre[val == 0],              pct_lab(mean(x == 0)), pos = 3, cex = 0.8, col = EJE)
+text(1,   fre[val == 1],              pct_lab(mean(x == 1)), pos = 3, cex = 0.8, col = EJE)
+text(0.5, fre[abs(val - 0.5) < 1e-9], pct_lab(mean(abs(x - 0.5) < 1e-9)),
+     pos = 3, cex = 0.8, col = EJE)
 
-mtext("31 valores distintos. El 75,3 % de las viviendas esta exactamente en 0 o en 1.",
+mtext(sprintf("%d valores distintos. El %s de las viviendas esta exactamente en 0 o en 1.",
+              length(tab), pct_lab(mean(x %in% c(0, 1)))),
       side = 3, line = 0.3, cex = 0.8, col = EJE)
 dev.off()
 
@@ -101,13 +111,13 @@ h <- hist(x, breaks = seq(0, 1, by = 0.1), right = FALSE, include.lowest = TRUE,
           xlab = "Proporcion dentro de la vivienda", ylab = "Viviendas",
           xaxt = "n", yaxt = "n")
 axis(1, at = seq(0, 1, 0.1), labels = format(seq(0, 1, 0.1), decimal.mark = ","))
-axis(2, at = seq(0, 40000, 10000),
-     labels = format(seq(0, 40000, 10000), big.mark = ".", decimal.mark = ",", trim = TRUE))
+ay <- pretty(c(0, max(h$counts)))
+axis(2, at = ay, labels = format(ay, big.mark = ".", decimal.mark = ",", trim = TRUE))
 abline(v = mean(x),   col = MEDIA,   lwd = 2)
 abline(v = median(x), col = MEDIANA, lwd = 2, lty = 2)
 legend("topright", bty = "n", lwd = 2, lty = c(1, 2), col = c(MEDIA, MEDIANA),
        cex = 0.85, text.col = EJE, inset = c(0.02, 0.02),
-       legend = c("media 0,3325", "mediana 0,0000"))
+       legend = c(paste("media", num_lab(mean(x))), paste("mediana", num_lab(median(x)))))
 mtext("Intervalos cerrados a la izquierda. La media y la mediana cuentan historias distintas.",
       side = 3, line = 0.3, cex = 0.8, col = EJE)
 dev.off()
@@ -132,7 +142,8 @@ axis(2, at = seq(0, 1, 0.25), labels = c("0", "0,25", "0,50", "0,75", "1"))
 # Misma solucion que en el grafico 12: la linea de referencia cruza todo el
 # ancho y la nota va despejada de la curva, no encima de ella.
 abline(h = 0.5, col = MEDIANA, lwd = 1.6, lty = 2)
-text(0.30, 0.30, "el salto inicial se lleva el 53,6 %:\nla mediana ya queda dentro de el",
+text(0.30, 0.30, sprintf("el salto inicial se lleva el %s:\nla mediana ya queda dentro de el",
+                         pct_lab(mean(x == 0))),
      pos = 4, cex = 0.78, col = EJE)
 dev.off()
 

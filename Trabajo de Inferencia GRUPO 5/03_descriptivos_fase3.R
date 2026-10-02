@@ -5,6 +5,10 @@
 # Requisitos: ninguno. R base, sin paquetes.
 # Modo de uso: pegar bloque por bloque en la consola de RStudio (Ctrl + 2).
 # Insumo: salidas/base_directorio_mes.rds (generado por 01b_construccion_estilo_docente.R)
+# Salidas: salidas/fase3_descriptivos.csv (V1, V2, V3 en pesos y V3 en
+#          logaritmo) y salidas/fase3_frecuencias_v4.csv
+# Las demas cifras que el informe cita en los comentarios salen de
+# 03b_cifras_del_texto.R, que se corre despues de este.
 # ============================================================================
 
 
@@ -22,14 +26,14 @@ options(scipen = 999)   # sin notacion cientifica: 400000, nunca 4e+05.
 
 RUTA        <- "."
 RUTA_SALIDA <- file.path(RUTA, "salidas")
-if (!dir.exists(RUTA_SALIDA))
-  stop("No encuentro la carpeta 'salidas/' desde el directorio de trabajo actual (",
+if (!file.exists(file.path(RUTA_SALIDA, "base_directorio_mes.rds")))
+  stop("No encuentro 'salidas/base_directorio_mes.rds' desde el directorio de trabajo actual (",
        getwd(), "). Corre antes 01b_construccion_estilo_docente.R.")
 
 base_directorio_mes <- readRDS(file.path(RUTA_SALIDA, "base_directorio_mes.rds"))
 d <- base_directorio_mes
 
-cat("filas:", nrow(d), " columnas:", ncol(d), "\n")   # debe decir 72737 x 22
+cat("filas:", nrow(d), " columnas:", ncol(d), "\n")   # debe decir 72737 x 23
 
 
 # ---------------------------------------------------------------------------
@@ -47,6 +51,9 @@ curt <- function(y){ y <- y[!is.na(y)]; mean((y - mean(y))^4) / sd(y)^4 }
 # ---------------------------------------------------------------------------
 # 3. TABLA DE DESCRIPTIVOS DE LAS TRES VARIABLES CUANTITATIVAS
 #    Los NA se excluyen del calculo pero se REPORTAN. No se imputan.
+#    V3 lleva dos filas: arriendo_mensual_vivienda (columna "Valor (pesos)"
+#    de la tabla del informe) y log_arriendo_mensual (columna "Valor (escala
+#    logaritmica)"). Las dos quedan tambien en fase3_descriptivos.csv.
 # ---------------------------------------------------------------------------
 descriptivos <- function(y){
   yv <- y[!is.na(y)]
@@ -64,19 +71,27 @@ descriptivos <- function(y){
     curtosis  = curt(yv))
 }
 
+# V3 se describe en las DOS escalas del informe: pesos y logaritmo natural.
 num <- c("prop_educ_superior_18mas",
          "prop_mujeres_adultas",
-         "arriendo_mensual_vivienda")
+         "arriendo_mensual_vivienda",
+         "log_arriendo_mensual")
 
 tabla_desc <- t(sapply(d[num], descriptivos))
 
-# Impresion legible: proporciones con 4 decimales, dinero con 2.
+# Impresion legible: proporciones y logaritmo con 6 decimales, como en las
+# tablas del informe; dinero con 2.
 cat("\n=== DESCRIPTIVOS - V1 y V2 (proporciones) ===\n")
-print(round(tabla_desc[1:2, ], 4))
+print(round(tabla_desc[1:2, ], 6))
 
-cat("\n=== DESCRIPTIVOS - V3 (pesos) ===\n")
-print(format(round(tabla_desc[3, ], 2), big.mark = ".", decimal.mark = ",",
-             scientific = FALSE), quote = FALSE)
+cat("\n=== DESCRIPTIVOS - V3 (pesos y escala logaritmica) ===\n")
+v3_dos_escalas <- cbind(
+  pesos = format(round(tabla_desc[3, ], 2), big.mark = ".", decimal.mark = ",",
+                 scientific = FALSE),
+  log   = c(format(tabla_desc[4, 1:2], big.mark = ".", decimal.mark = ","),
+            formatC(tabla_desc[4, -(1:2)], format = "f", digits = 6,
+                    decimal.mark = ",")))
+print(v3_dos_escalas, quote = FALSE)
 
 
 # ---------------------------------------------------------------------------
@@ -113,6 +128,22 @@ cat("valores distintos que toma V1:", length(f1), "\n")
 
 cat("\n=== V1: adultos por vivienda (el denominador) ===\n")
 print(table(d$den_educ[!is.na(d$prop_educ_superior_18mas)]))
+cat("porcentaje de viviendas con uno o dos adultos:",
+    round(100 * mean(d$den_educ[!is.na(d$prop_educ_superior_18mas)] %in% 1:2), 2), "\n")
+
+
+# ---------------------------------------------------------------------------
+# 5b. LO MISMO PARA V2: VALORES MAS FRECUENTES
+#    Respalda el 39,15 % en 0,5, el 25,42 % en 1, el 13,56 % en 0 y los
+#    26 valores distintos que cita el informe.
+# ---------------------------------------------------------------------------
+cat("\n=== V2: valores mas frecuentes ===\n")
+f2 <- sort(table(round(d$prop_mujeres_adultas, 4)), decreasing = TRUE)
+tabla_v2 <- cbind(viviendas  = as.vector(f2),
+                  porcentaje = round(100 * as.vector(f2) / sum(f2), 2))
+rownames(tabla_v2) <- names(f2)
+print(head(tabla_v2, 8))
+cat("valores distintos que toma V2:", length(f2), "\n")
 
 
 # ---------------------------------------------------------------------------

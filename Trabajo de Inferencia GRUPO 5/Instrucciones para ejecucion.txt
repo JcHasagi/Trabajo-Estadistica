@@ -1,37 +1,67 @@
 ===============================================================================
   PRIMER TRABAJO ESTADISTICA II - INFERENCIA ESTADISTICA
   GEIH 2025 (mayo, junio y julio) - Nivel de agregacion: VIVIENDA
-  Informe final y sintaxis reproducible en R
+  Informe final y sintaxis en R que regenera todos sus resultados
 ===============================================================================
 
 
 CONTENIDO
 -------------------------------------------------------------------------------
-  Primer Trabajo Estadistica II - Fase 3.docx   El informe final
-  00_ejecutar_todo.R                            Corre los siete scripts en orden
-  01b_construccion_estilo_docente.R             Construye la base y el diccionario
+  Primer_Trabajo_Estadistica_II_-_Fase_3.docx   El informe final
+  Instrucciones para ejecucion.txt              Este archivo
+  00_ejecutar_todo.R                            Corre los diez scripts en orden
+  01b_construccion_estilo_docente.R             Valida los datos, construye la
+                                                base y el diccionario
   03_descriptivos_fase3.R                       Descriptivos y frecuencias de V4
+  03b_cifras_del_texto.R                        Cifras citadas en los
+                                                comentarios del informe
   04_graficos_log_arriendo.R                    Graficos 1 a 5   (V3 y su logaritmo)
   05_graficos_educacion_superior.R              Graficos 6 a 9   (V1)
   06_graficos_v2_mujeres.R                      Graficos 10 a 13 (V2)
   07_graficos_v4_analfabetismo.R                Graficos 14 a 16 (V4)
-  08_estimadores_simulacion.R                   Estimadores, intervalos y simulacion
-  09_graficos_consistencia.R                    Graficos 17 a 20 (consistencia)
+  08_estimadores_simulacion.R                   Estimadores, IC de la media y de
+                                                sigma^2, y simulacion (guarda
+                                                todas las replicas)
+  09_graficos_consistencia.R                    Graficos 17 a 20 (consistencia,
+                                                un panel por B)
+  10_variacion_entre_ejecuciones.R              Tres ejecuciones sin semilla
+                                                frente al error de Monte Carlo
+  salidas/fase3_distribuciones.rds y            Resultados de la fase 3 de la
+  salidas/fase3_*.csv                           ejecucion que reporta el informe
+                                                (ver EXCEPCION)
 
-  No se incluyen los datos ni la carpeta de salidas: el codigo los genera.
+  Son once scripts .R. La numeracion no tiene 01 ni 02: el 01b es la version
+  que se entrega del script de construccion (sigue la estructura de la
+  sintaxis de ejemplo del docente) y el 03b complementa al 03.
+
+  No se incluyen los microdatos del DANE ni las bases que el codigo construye
+  (salidas/base_*.csv y .rds, con una fila por vivienda): el codigo las genera.
+
+  EXCEPCION. Se entregan salidas/fase3_distribuciones.rds y los CSV de la
+  fase 3 (salidas/fase3_*.csv, listados en QUE PRODUCE). No contienen
+  microdatos: solo descriptivos, estimadores, intervalos y las medias y
+  medianas de las replicas de la simulacion. Se entregan porque la simulacion
+  no fija semilla: cada ejecucion produce replicas nuevas, de modo que estos
+  archivos son la unica forma de verificar las cifras de Monte Carlo del
+  informe, que corresponden a la ejecucion guardada en
+  salidas/fase3_distribuciones.rds.
 
 
 COMO EJECUTARLO
 -------------------------------------------------------------------------------
-  1. Copie los diez archivos a la carpeta que contiene los microdatos, es decir
-     la que tiene dentro las carpetas:
+  1. Copie los once scripts .R a la carpeta que contiene los microdatos, es
+     decir la que tiene dentro las carpetas:
 
          Mayo 2025/CSV/
          Junio 2025/CSV/
          Julio 2025/CSV/
 
      Los scripts usan RUTAS RELATIVAS, de modo que no importa como se llame esa
-     carpeta ni en que disco este.
+     carpeta ni en que disco este. El informe y este archivo no hacen falta.
+
+     OJO: el 00 reescribe los archivos de salidas/. Si copia tambien la
+     carpeta salidas/ entregada, guarde antes una copia de ella en otro lugar:
+     una ejecucion nueva produce otras replicas y otras cifras de Monte Carlo.
 
   2. Instale los dos paquetes que necesita el script de construccion. Los demas
      usan R base, sin dependencias:
@@ -43,31 +73,117 @@ COMO EJECUTARLO
      o bien, escribiendo la ruta a mano:
          setwd("ruta/de/la/carpeta")
 
-  4. Ejecute:
+  4. Abra R sin restaurar un espacio de trabajo guardado (.RData). En RStudio:
+         Tools > Global Options > General > desmarcar
+         "Restore .RData into workspace at startup"
+     Ningun script fija semilla; si se restaura un .RData que guardo el estado
+     del generador aleatorio, dos sesiones nuevas repetirian las mismas
+     replicas. Dentro de una misma sesion las ejecuciones siempre difieren.
+
+  5. Ejecute:
 
          source("00_ejecutar_todo.R", encoding = "UTF-8")
 
-     Tarda entre 10 y 20 minutos. La mayor parte se la llevan el script 08
-     (simulacion con B = 10.000 replicas) y el 09.
+     El 00 imprime los minutos acumulados al terminar cada script y el total
+     al final. Como referencia aproximada, en la prueba con datos sinteticos
+     del mismo tamano que los reales (72.737 viviendas) la corrida completa
+     tardo unos 12 minutos: unos 4 el 08 (simulacion) y unos 7,5 el 10 (dos
+     ejecuciones mas del mismo ciclo). El 09 tarda segundos: no simula, lee
+     las replicas que guardo el 08.
 
   Los scripts tambien funcionan por separado, en el orden de su numeracion.
   El 00 no contiene ningun calculo propio: es solo una comodidad.
-  Los scripts 03 a 09 necesitan que 01b se haya corrido antes, porque leen la
-  base que el produce. Si falta, se detienen con un mensaje que lo indica.
+  Los scripts 03 a 08 y el 10 leen salidas/base_directorio_mes.rds, que
+  produce el 01b; el 09 y el 10 leen salidas/fase3_distribuciones.rds, que
+  produce el 08. Por eso el 01b va primero y el 08 antes del 09 y del 10. Si
+  falta alguno de esos archivos, el script se detiene con un mensaje que lo
+  indica. El 10 tambien se detiene si la base cambio desde que se corrio el
+  08 (otro N u otra media).
+
+  En Linux o macOS, R debe correr con una configuracion regional UTF-8 (por
+  ejemplo LANG=es_CO.UTF-8 o C.UTF-8): con la configuracion "C" no puede leer
+  las tildes de los encabezados del 01b. En Windows con R >= 4.2 no hace falta
+  nada.
+
+
+COMO VERIFICAR LAS CIFRAS DEL INFORME
+-------------------------------------------------------------------------------
+  - Cifras de Monte Carlo (sesgos, varianzas, errores de Monte Carlo, ECM,
+    razones y proporcion de replicas con la mediana poblacional): estan en los
+    archivos entregados, sin correr nada. salidas/fase3_valores_informe.csv
+    las trae escritas como en el informe (coma decimal), cada una con su clave
+    y su descripcion; fase3_valores_informe_10.csv hace lo mismo con la
+    comparacion entre ejecuciones del script 10.
+  - Graficos 17 a 20: con solo el archivo entregado
+    salidas/fase3_distribuciones.rds (no hacen falta los microdatos),
+        source("09_graficos_consistencia.R", encoding = "UTF-8")
+    vuelve a dibujarlos a partir de las mismas replicas que las tablas.
+  - Todo lo demas (bases, descriptivos, cifras del texto, estimadores e
+    intervalos de la media y de sigma^2, graficos 1 a 16) no depende del azar:
+    una ejecucion nueva lo reproduce identico. Una ejecucion nueva de la
+    simulacion, en cambio, da cifras que difieren en una magnitud del orden
+    del error de Monte Carlo; el script 10 lo muestra.
+  - Comprobacion opcional por hash entre dos corridas completas, SOLO de las
+    salidas que no dependen del azar. Tras la primera corrida, copie salidas/
+    a salidas_corrida1/; corra de nuevo el 00 y luego:
+
+      aleatorias <- paste0("^fase3_(simulacion|distribuciones|valores_informe",
+                           "|variacion_ejecuciones)|^graficos/(17|18|19|20)_")
+      f  <- list.files("salidas_corrida1", recursive = TRUE)
+      f  <- f[!grepl(aleatorias, f)]
+      h1 <- unname(tools::md5sum(file.path("salidas_corrida1", f)))
+      h2 <- unname(tools::md5sum(file.path("salidas", f)))
+      print(data.frame(archivo = f, igual = h1 == h2), row.names = FALSE)
+      cat("Salidas deterministas identicas:", all(h1 == h2), "\n")
 
 
 QUE PRODUCE
 -------------------------------------------------------------------------------
+  Los marcados con (*) se entregan (ver EXCEPCION). Cambian en cada ejecucion
+  los marcados con (MC), porque dependen de la simulacion sin semilla.
+
   salidas/base_directorio_mes.csv y .rds              72.737 filas x 23 columnas
                                                       (una fila por vivienda)
   salidas/base_departamento_mes.csv y .rds            99 filas x 29 columnas
                                                       (una fila por DPTO + MES)
   salidas/diccionario_variables_derivadas.csv y .rds  23 variables documentadas
-  salidas/fase3_descriptivos.csv                      Descriptivos de V1, V2 y V3
-  salidas/fase3_frecuencias_v4.csv                    Frecuencias de V4
-  salidas/fase3_estimadores_puntuales.csv             Estimadores e intervalos
-  salidas/fase3_simulacion.csv                        Resultados de la simulacion
-  salidas/graficos/                                   20 archivos PNG
+  salidas/fase3_descriptivos.csv                (*)   Descriptivos de V1, V2 y
+                                                      V3 (en pesos y en log)
+  salidas/fase3_frecuencias_v4.csv              (*)   Frecuencias de V4
+  salidas/fase3_cifras_del_texto.csv            (*)   Cifras de los comentarios
+                                                      del informe, cada una con
+                                                      su clave y el apartado
+  salidas/fase3_estimadores_puntuales.csv       (*)   Media o proporcion:
+                                                      estimadores e IC 95 %
+  salidas/fase3_estimadores_varianza.csv        (*)   sigma^2 de V1, V2 y V3:
+                                                      analogia, max. verosimil,
+                                                      IC 95 % chi-cuadrado, IC
+                                                      robusto a la curtosis y
+                                                      nivel real del
+                                                      chi-cuadrado
+  salidas/fase3_simulacion.csv               (*)(MC)  Resumen de la simulacion,
+                                                      una fila por variable y B
+  salidas/fase3_distribuciones.rds           (*)(MC)  TODAS las replicas de la
+                                                      media y la mediana, por
+                                                      variable y B (las leen el
+                                                      09 y el 10)
+  salidas/fase3_valores_informe.csv          (*)(MC)  Cifras del 08 listas para
+                                                      el informe, con su clave
+                                                      (incluye las de sigma^2)
+  salidas/fase3_variacion_ejecuciones.csv    (*)(MC)  Tres ejecuciones de la
+                                                      simulacion frente al error
+                                                      de Monte Carlo
+  salidas/fase3_valores_informe_10.csv       (*)(MC)  Cifras de esa comparacion,
+                                                      con su clave
+  salidas/graficos/                                   20 archivos PNG: 16
+                                                      aparecen en el informe;
+                                                      01, 02, 07 y 11 son de
+                                                      apoyo
+  salidas/graficos/17_ a 20_consistencia_v*.png (MC)  Distribucion de la media
+                                                      muestral con n = N, tres
+                                                      paneles (B = 100, 1.000 y
+                                                      10.000), con los mismos
+                                                      ejes
 
 
 LAS CUATRO VARIABLES
@@ -92,22 +208,58 @@ LAS CUATRO VARIABLES
 
 QUE COMPRUEBA EL CODIGO AL CORRER
 -------------------------------------------------------------------------------
-  Todo esto se imprime en consola y detiene la ejecucion si algo falla:
+  El script 01b imprime cada comprobacion en consola y DETIENE la ejecucion
+  (stop o stopifnot, con un mensaje que dice cual fallo) si:
 
-    - Que los seis archivos existan desde el directorio de trabajo.
-    - La codificacion de cada archivo, leyendo sus bytes crudos, sin suponerla.
-    - Que no haya archivos .DTA ni .SAV en las carpetas de mes: un solo formato.
-    - Que la columna MES de cada archivo traiga el codigo esperado, 05, 06 o 07.
-    - Que los encabezados sean identicos en los tres meses.
-    - Que existan todos los campos requeridos, antes de seleccionar columnas.
-    - Los dominios de P3042, P3039, P6160, POB_MAY18 y P5090 contra el
-      diccionario, y los tres saltos de patron documentados.
-    - Que HOGAR coincida con SECUENCIA_P, y que DPTO y CLASE tengan un solo
-      valor dentro de cada PERIODO + MES + DIRECTORIO.
-    - La unicidad de la llave de persona, la de hogar, la de cada resumen antes
-      de unir y la de la base despues de unir.
-    - La union, validada por dplyr con relationship = "one-to-one".
-    - Los rangos de las cuatro variables y la coherencia del logaritmo.
+    - Falta alguno de los seis archivos desde el directorio de trabajo.
+    - Hay archivos .DTA o .SAV en las carpetas de mes: un solo formato.
+    - La columna MES de algun archivo no trae el codigo esperado, 05, 06 o 07.
+    - Los encabezados no son identicos en los tres meses.
+    - Falta alguno de los campos requeridos, antes de seleccionar columnas.
+    - Hay valores fuera del dominio del diccionario en P3042, P3039, P6160,
+      POB_MAY18 o P5090.
+    - Falla un salto de patron: la edad (P6040) tiene vacios o no es numerica;
+      P3039 no esta vacio exactamente en los menores de 18; P6160 no esta
+      vacio exactamente en los menores de 3; o POB_MAY18 = 1 no equivale a
+      tener 18 anios o mas.
+    - HOGAR no coincide con SECUENCIA_P, en la tabla de personas o en la de
+      hogares.
+    - DPTO o CLASE tienen mas de un valor dentro de un PERIODO + MES +
+      DIRECTORIO.
+    - Se repite la llave de persona o la de hogar.
+    - P5140 tiene dato en algun hogar que no esta en arriendo, o le falta a
+      alguno que si lo esta (P5090 = 3).
+    - Algun resumen tiene mas de una fila por vivienda antes de unir, la union
+      no es uno a uno (dplyr, relationship = "one-to-one") o, despues de unir,
+      se repite la llave o cambia el numero de filas.
+    - Falla alguna de las 15 comprobaciones de rango y coherencia de la base:
+        V1 y V2 dentro de [0, 1];
+        num_educ <= den_educ, num_muj <= den_gen y n_no_alfab <= den_alfab;
+        V1 y V2 en NA exactamente en las viviendas sin adultos;
+        V3 siempre por encima de 1.000;
+        V3 en NA exactamente cuando ningun hogar arrienda o a alguno le
+        falta el monto;
+        n_hog_arriendo <= n_hogares;
+        log_arriendo_mensual en NA exactamente donde V3 es NA, y exp(log)
+        reproduce V3 (error relativo < 1e-12);
+        toda vivienda tiene al menos una persona de 3 anios o mas;
+        V4 sin faltantes, e igual a "Con al menos una persona analfabeta"
+        exactamente cuando n_no_alfab > 0.
+
+  Ademas, sin detener la ejecucion, el 01b:
+    - Determina la codificacion de cada archivo leyendo sus bytes crudos, sin
+      suponerla, y lee cada uno con la suya (avisa si los meses difieren).
+    - Si ya existe una base en salidas/, la compara columna por columna con
+      la nueva antes de exportar e imprime cuantas columnas difieren.
+    - Imprime los conteos que cita el informe (vacios de P3039 y P6160,
+      adultos con P3039 = 3 o 4, hogares en arriendo, viviendas con dos o mas
+      hogares arrendatarios, composicion de las viviendas de dos adultos).
+
+  Los scripts 03 a 08 y el 10 se detienen si falta
+  salidas/base_directorio_mes.rds, y el 09 y el 10 si falta
+  salidas/fase3_distribuciones.rds. El 09 se detiene tambien si las replicas
+  que dibuja no coinciden con el resumen del 08, y el 10 si la base no es la
+  misma con que se corrio el 08.
 
 
 NOTAS DE METODO
@@ -123,6 +275,31 @@ NOTAS DE METODO
     la escala logaritmica. El parametro estimado es mu = E[log(arriendo)], no la
     media del arriendo, y exp() sobre ese intervalo devuelve un intervalo para
     la media geometrica, no para la media aritmetica.
-  - La simulacion usa muestreo CON reemplazo, B = 10.000 replicas y semilla
-    fija set.seed(2026), de modo que es reproducible exactamente.
+  - Varianza sigma^2 (V1, V2 y V3; en V3 sobre el logaritmo): por analogia se
+    usa S^2 = var(), con divisor n - 1; por maxima verosimilitud, el divisor
+    n. El intervalo de la tabla es el clasico chi-cuadrado con n - 1 grados de
+    libertad, que solo es exacto si la variable es normal: supone curtosis 3
+    y el teorema del limite central no lo corrige al crecer n. Por eso se
+    calcula tambien el intervalo asintotico robusto a la curtosis,
+    S^2 +- z * raiz((m4 - S^4) / n), y se declara el nivel real aproximado
+    del chi-cuadrado, 2 * pnorm(z / raiz((k - 1) / 2)) - 1, con k la
+    curtosis: por encima del 95 % si k < 3 y por debajo si k > 3. En V3 no se
+    aplica exp() a la varianza; la lectura en pesos se hace con exp(sigma).
+    V4 no lleva este intervalo: en una Bernoulli sigma^2 = p(1 - p) queda
+    determinada por p.
+  - Simulacion (script 08): la base se toma como poblacion y en cada replica
+    se extrae CON reemplazo una muestra de tamano n = N, el del conjunto
+    analitico de cada variable (72.649, 72.649, 29.565 y 72.737). Un solo
+    ciclo recorre B = 100, 1.000 y 10.000 replicas y guarda la media y la
+    mediana de cada una. La consistencia compara los tres valores de B con N
+    fijo; el insesgamiento y la eficiencia se leen del mismo experimento con
+    B = 10.000, el que cumple el criterio de error de Monte Carlo de 0,5 pp
+    (B >= 7.299).
+  - La simulacion NO fija semilla: cada ejecucion produce replicas nuevas y
+    sus cifras cambian en los ultimos decimales. El informe reporta la
+    ejecucion guardada en salidas/fase3_distribuciones.rds, de la que salen
+    tanto las tablas como los graficos 17 a 20. El script 10 repite dos veces
+    el mismo ciclo y compara las tres ejecuciones: difieren en una magnitud
+    del orden del error de Monte Carlo, s / raiz(B), que se reduce al crecer
+    B. Las demas salidas no dependen del azar y se repiten identicas.
 ===============================================================================

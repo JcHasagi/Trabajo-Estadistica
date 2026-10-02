@@ -4,13 +4,17 @@
 #  VERSION ESCRITA CON LA ESTRUCTURA DE LA SINTAXIS DE EJEMPLO DEL DOCENTE
 #
 #  Unidad de analisis: VIVIENDA = PERIODO + MES + DIRECTORIO
-#  Produce los mismos objetos que 01_construccion_variables_GEIH2025.R
-#  y al final los COMPARA columna por columna contra la base ya verificada.
+#  Si ya existe una base en salidas/, al final la compara columna por columna
+#  con la nueva antes de exportar.
+#
+#  Cada comprobacion se imprime en consola y, si alguna falla, stopifnot()
+#  detiene la ejecucion con un mensaje que dice cual fue.
 #
 #  RUTAS RELATIVAS: el script asume que el directorio de trabajo contiene las
 #  carpetas "Mayo 2025", "Junio 2025" y "Julio 2025". En RStudio se consigue
 #  abriendo el proyecto en esa carpeta, o con setwd("C:/Estadistica 2") una vez
-#  antes de correr esto. El bloque 0 lo comprueba y se detiene si no es asi.
+#  antes de correr esto. La comprobacion previa lo verifica y se detiene si no
+#  es asi.
 #
 #  Antes de correrlo, una sola vez:
 #    install.packages(c("readr", "dplyr"))
@@ -27,6 +31,15 @@
 options(scipen = 999)   # sin notacion cientifica: 400000, nunca 4e+05.
                         # Se fija aqui para que la salida no dependa del
                         # estado de la sesion ni del orden de ejecucion.
+
+# comprobar(): recibe comprobaciones con nombre (cada una TRUE o FALSE), las
+# imprime y, si alguna no da TRUE (un NA tambien cuenta como falla),
+# stopifnot() detiene la ejecucion con un mensaje que nombra la primera que
+# fallo. Se usa en los saltos de patron, en HOGAR = SECUENCIA_P y en los rangos.
+comprobar <- function(ch) {
+  for (k in names(ch)) cat(sprintf("  %-52s: %s\n", k, ch[[k]]))
+  do.call(stopifnot, setNames(as.list(ch), paste("No se cumple:", names(ch))))
+}
 
 RUTA <- "."                                   # ruta relativa al directorio de trabajo
 MESES <- c("Mayo 2025", "Junio 2025", "Julio 2025")
@@ -208,8 +221,10 @@ DOMINIOS <- list(
   POB_MAY18 = "1"
 )
 cat("\n=== DOMINIOS OBSERVADOS FRENTE AL DICCIONARIO ===\n")
+n_fuera <- 0L
 for (v in names(DOMINIOS)) {
   fuera <- setdiff(setdiff(unique(general[[v]]), NA), DOMINIOS[[v]])
+  n_fuera <- n_fuera + length(fuera)
   cat(sprintf("  %-10s %s\n", v,
       if (length(fuera)) paste("AVISO, valores fuera del dominio:",
                                paste(fuera, collapse = ",")) else "conforme"))
@@ -217,25 +232,37 @@ for (v in names(DOMINIOS)) {
 fuera_p5090 <- setdiff(setdiff(unique(vivienda$P5090), NA), as.character(1:7))
 cat(sprintf("  %-10s %s\n", "P5090",
     if (length(fuera_p5090)) paste("AVISO:", paste(fuera_p5090, collapse = ",")) else "conforme"))
+# Un valor fuera del dominio se corrige en el diccionario (DOMINIOS) si es un
+# codigo legitimo, nunca forzando el dato.
+stopifnot(
+  "Valores fuera del dominio en P3042, P3039, P6160 o POB_MAY18 (ver AVISO arriba)" =
+    n_fuera == 0L,
+  "Valores de P5090 fuera de 1 a 7 (ver AVISO arriba)" = length(fuera_p5090) == 0L)
 
 # Saltos de patron declarados en el diccionario: se verifican, no se asumen.
+# Tambien se imprimen los vacios que cita el informe (menores de 18 sin P3039
+# y menores de 3 sin P6160).
+cat("\n--- Saltos de patron ---\n")
 edad <- as.numeric(general$P6040)
-cat("  P3039 vacio exactamente en menores de 18   :",
-    all(is.na(general$P3039) == (edad < 18)), "\n")
-cat("  P6160 vacio exactamente en menores de 3    :",
-    all(is.na(general$P6160) == (edad < 3)), "\n")
-cat("  POB_MAY18 = 1 equivale a edad >= 18        :",
-    all((!is.na(general$POB_MAY18) & general$POB_MAY18 == "1") == (edad >= 18)), "\n")
+cat("  personas con P3039 vacio (menores de 18):", sum(is.na(general$P3039)), "\n")
+cat("  personas con P6160 vacio (menores de 3) :", sum(is.na(general$P6160)), "\n")
+saltos <- c(
+  "P6040 (edad) sin vacios y numerica"         = !anyNA(edad),
+  "P3039 vacio exactamente en menores de 18"   = all(is.na(general$P3039) == (edad < 18)),
+  "P6160 vacio exactamente en menores de 3"    = all(is.na(general$P6160) == (edad < 3)),
+  "POB_MAY18 = 1 equivale a edad >= 18"        =
+    all((!is.na(general$POB_MAY18) & general$POB_MAY18 == "1") == (edad >= 18)))
+comprobar(saltos)
 
 # --- Llaves intermedias y atributos constantes -------------------------------
 # El diccionario documenta SECUENCIA_P como "Identificador del hogar" y HOGAR
 # como "Numero del hogar en la vivienda"; ambas estan marcadas como PK. Se
 # conservan las dos y se comprueba su coherencia.
 cat("\n=== LLAVES INTERMEDIAS Y ATRIBUTOS CONSTANTES ===\n")
-cat("  HOGAR coincide con SECUENCIA_P (personas):",
-    all(general$HOGAR == general$SECUENCIA_P), "\n")
-cat("  HOGAR coincide con SECUENCIA_P (hogares) :",
-    all(vivienda$HOGAR == vivienda$SECUENCIA_P), "\n")
+llaves_hogar <- c(
+  "HOGAR coincide con SECUENCIA_P (personas)" = all(general$HOGAR  == general$SECUENCIA_P),
+  "HOGAR coincide con SECUENCIA_P (hogares)"  = all(vivienda$HOGAR == vivienda$SECUENCIA_P))
+comprobar(llaves_hogar)
 
 # DPTO debe tener UN SOLO valor dentro de cada PERIODO + MES + DIRECTORIO;
 # de lo contrario no podria arrastrarse a la base final con first().
@@ -282,6 +309,11 @@ general <- general %>%
     es_no_alfab  = !is.na(P6160) & P6160 == "2"
   )
 
+# Los codigos 3 y 4 de P3039 entran en el denominador de V2 pero no en el
+# numerador; el informe cita cuantas personas son.
+cat("\n  adultos con P3039 = 3 o 4 (en den_gen, no en num_muj):",
+    sum(general$adulto & general$P3039 %in% c("3", "4")), "\n")
+
 # --- Marcas a nivel hogar ----------------------------------------------------
 # Descripciones literales del diccionario:
 #   P5090 = "La vivienda ocupada por este hogar es:"; codigo 3 = "En arriendo o
@@ -301,6 +333,16 @@ vivienda <- vivienda %>%
 
 # El universo de P5140 son EXACTAMENTE los hogares en arriendo. Se verifica.
 stopifnot(all(!is.na(vivienda$arr) == (vivienda$P5090 == "3")))
+
+# Cifras que cita el informe sobre ese universo: hogares en arriendo y cuantos
+# responden 98 o 99. Tambien cuantos reportan exactamente 1.000 u otro monto de
+# 1.000 o menos, que irian a NA (el informe dice que ninguno).
+cat("\n=== HOGARES EN ARRIENDO (P5090 = 3) ===\n")
+cat("  hogares en arriendo                         :", sum(vivienda$P5090 == "3"), "\n")
+cat("  con P5140 = 98 o 99 (van a NA)              :", sum(vivienda$arr %in% c(98, 99)), "\n")
+cat("  con P5140 exactamente igual a 1.000         :", sum(vivienda$arr %in% 1000), "\n")
+cat("  con P5140 <= 1.000 distinto de 98 y 99      :",
+    sum(!is.na(vivienda$arr) & vivienda$arr <= 1000 & !(vivienda$arr %in% c(98, 99))), "\n")
 
 # --- Resumen de cada modulo POR SEPARADO, al nivel de VIVIENDA ---------------
 # Se resume ANTES de unir: nunca se unen personas con hogares fila a fila.
@@ -442,27 +484,58 @@ base_directorio_mes %>%
   select(DIRECTORIO, MES, n_hogares, n_hog_arriendo, arriendo_mensual_vivienda) %>%
   head()
 
-cat("\n--- Comprobaciones de rango ---\n")
-cat("V1 dentro de [0,1]:                ",
-    all(is.na(base_directorio_mes$prop_educ_superior_18mas) |
-        (base_directorio_mes$prop_educ_superior_18mas >= 0 &
-         base_directorio_mes$prop_educ_superior_18mas <= 1)), "\n")
-cat("V2 dentro de [0,1]:                ",
-    all(is.na(base_directorio_mes$prop_mujeres_adultas) |
-        (base_directorio_mes$prop_mujeres_adultas >= 0 &
-         base_directorio_mes$prop_mujeres_adultas <= 1)), "\n")
-cat("V3 siempre por encima de 1.000:    ",
-    all(is.na(base_directorio_mes$arriendo_mensual_vivienda) |
-        base_directorio_mes$arriendo_mensual_vivienda > 1000), "\n")
-cat("Numeradores <= denominadores:      ",
-    all(base_directorio_mes$num_educ <= base_directorio_mes$den_educ) &&
-    all(base_directorio_mes$num_muj  <= base_directorio_mes$den_gen), "\n")
-cat("exp(log) reproduce V3:             ",
-    all(is.na(base_directorio_mes$arriendo_mensual_vivienda) |
-        abs(exp(base_directorio_mes$log_arriendo_mensual) -
-            base_directorio_mes$arriendo_mensual_vivienda) < 1e-6), "\n")
-cat("V4 sin faltantes:                  ",
-    !any(is.na(base_directorio_mes$presencia_analfabetismo)), "\n")
+# --- Comprobaciones de rango y coherencia ------------------------------------
+# Son las que el informe declara en "Comprobaciones de calidad" de cada
+# variable. Si alguna falla, comprobar() detiene la ejecucion y dice cual.
+# La de exp(log) usa error RELATIVO: con montos de cientos de millones, el
+# redondeo de exp(log(x)) ya pasa de 1e-6 pesos sin que haya ningun error.
+bd          <- base_directorio_mes
+sin_adultos <- bd$n_adultos == 0
+con_v3      <- !is.na(bd$arriendo_mensual_vivienda)
+cat("\n--- Comprobaciones de rango y coherencia ---\n")
+rangos <- c(
+  "V1 dentro de [0, 1]" =
+    all(is.na(bd$prop_educ_superior_18mas) |
+        (bd$prop_educ_superior_18mas >= 0 & bd$prop_educ_superior_18mas <= 1)),
+  "V2 dentro de [0, 1]" =
+    all(is.na(bd$prop_mujeres_adultas) |
+        (bd$prop_mujeres_adultas >= 0 & bd$prop_mujeres_adultas <= 1)),
+  "num_educ <= den_educ (V1)"    = all(bd$num_educ   <= bd$den_educ),
+  "num_muj <= den_gen (V2)"      = all(bd$num_muj    <= bd$den_gen),
+  "n_no_alfab <= den_alfab (V4)" = all(bd$n_no_alfab <= bd$den_alfab),
+  "V1 es NA exactamente en las viviendas sin adultos" =
+    all(is.na(bd$prop_educ_superior_18mas) == sin_adultos),
+  "V2 es NA exactamente en las viviendas sin adultos" =
+    all(is.na(bd$prop_mujeres_adultas) == sin_adultos),
+  "V3 siempre por encima de 1.000" =
+    all(!con_v3 | bd$arriendo_mensual_vivienda > 1000),
+  "V3 es NA si nadie arrienda o falta algun monto" =
+    all(is.na(bd$arriendo_mensual_vivienda) ==
+        (bd$n_hog_arriendo == 0 | bd$n_hog_arr_sin_dato > 0)),
+  "n_hog_arriendo <= n_hogares (V3)" = all(bd$n_hog_arriendo <= bd$n_hogares),
+  "log de V3 es NA exactamente donde V3 es NA" =
+    all(is.na(bd$log_arriendo_mensual) == !con_v3),
+  "exp(log) reproduce V3 (error relativo < 1e-12)" =
+    all(abs(exp(bd$log_arriendo_mensual[con_v3]) /
+            bd$arriendo_mensual_vivienda[con_v3] - 1) < 1e-12),
+  "toda vivienda tiene alguien de 3 anios o mas" = all(bd$den_alfab > 0),
+  "V4 sin faltantes" = !any(is.na(bd$presencia_analfabetismo)),
+  "V4 = Con... exactamente cuando n_no_alfab > 0" =
+    all((bd$presencia_analfabetismo == "Con al menos una persona analfabeta") ==
+        (bd$n_no_alfab > 0)))
+comprobar(rangos)
+
+# Cifras de la base que cita el informe
+rango_v3  <- range(bd$arriendo_mensual_vivienda, na.rm = TRUE)
+rango_log <- range(bd$log_arriendo_mensual,      na.rm = TRUE)
+cat("\n  viviendas sin adultos (V1 y V2 en NA)          :", sum(sin_adultos), "\n")
+cat("  viviendas con V3 (arriendo con monto valido)   :", sum(con_v3), "\n")
+cat("  viviendas con dos o mas hogares arrendatarios  :", sum(bd$n_hog_arriendo >= 2), "\n")
+cat("    (contando tambien los hogares sin monto)     :",
+    sum(bd$n_hog_arriendo + bd$n_hog_arr_sin_dato >= 2), "\n")
+cat("  V3 minimo y maximo (pesos)                     :", rango_v3[1], "y", rango_v3[2], "\n")
+cat("  log_arriendo_mensual minimo y maximo           :",
+    sprintf("%.2f y %.2f", rango_log[1], rango_log[2]), "\n")
 
 # --- De donde sale el pico de 0,50 en V2: se verifica con P6050 --------------
 # La composicion por sexo NO dice que relacion hay entre las dos personas. El
@@ -475,13 +548,20 @@ dos_adultos <- general %>%
   summarise(una_mujer   = sum(P3039 == "2") == 1,
             hombre_mujer = identical(sort(P3039), c("1", "2")),
             jefe_pareja  = identical(sort(P6050), c("1", "2")),
+            jefe_hijo    = identical(sort(P6050), c("1", "3")),   # 3 = hijo(a)
             .groups = 'drop')
+n_hm <- sum(dos_adultos$hombre_mujer)
+n_jp <- sum(dos_adultos$hombre_mujer & dos_adultos$jefe_pareja)
+n_jh <- sum(dos_adultos$hombre_mujer & dos_adultos$jefe_hijo)
+pct  <- function(a, b) sub(".", ",", sprintf("%.1f %%", 100 * a / b), fixed = TRUE)
 cat("\n--- V2: composicion de las viviendas de dos adultos ---\n")
 cat("  viviendas con dos adultos          :", nrow(dos_adultos), "\n")
 cat("  con exactamente una mujer (V2=0,50):", sum(dos_adultos$una_mujer), "\n")
-cat("  con un hombre y una mujer          :", sum(dos_adultos$hombre_mujer), "\n")
-cat("  de esas, jefe(a) + pareja (P6050=2):",
-    sum(dos_adultos$hombre_mujer & dos_adultos$jefe_pareja), "\n")
+cat("    de esas, el otro adulto responde 3 o 4 en P3039:",
+    sum(dos_adultos$una_mujer & !dos_adultos$hombre_mujer), "\n")
+cat("  con un hombre y una mujer          :", n_hm, "\n")
+cat("  de esas, jefe(a) + pareja (P6050=2):", n_jp, sprintf("(%s)", pct(n_jp, n_hm)), "\n")
+cat("  de esas, jefe(a) + hijo(a) (P6050=3):", n_jh, sprintf("(%s)", pct(n_jh, n_hm)), "\n")
 
 
 #### Diccionario de las variables derivadas

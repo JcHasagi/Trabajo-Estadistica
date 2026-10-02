@@ -4,6 +4,7 @@
 #
 # Requisitos: ninguno. R base, sin paquetes.
 # Modo de uso: source() completo, o pegar bloque por bloque en la consola.
+# Insumo: salidas/base_directorio_mes.rds (generado por 01b_construccion_estilo_docente.R)
 # Salida: 3 PNG en salidas/graficos/ (numerados 14 a 16)
 #
 # NOTA DE FORMA - por que estos graficos y no otros:
@@ -31,8 +32,8 @@ options(scipen = 999)   # sin notacion cientifica: 400000, nunca 4e+05.
 
 RUTA        <- "."
 RUTA_SALIDA <- file.path(RUTA, "salidas")
-if (!dir.exists(RUTA_SALIDA))
-  stop("No encuentro la carpeta 'salidas/' desde el directorio de trabajo actual (",
+if (!file.exists(file.path(RUTA_SALIDA, "base_directorio_mes.rds")))
+  stop("No encuentro 'salidas/base_directorio_mes.rds' desde el directorio de trabajo actual (",
        getwd(), "). Corre antes 01b_construccion_estilo_docente.R.")
 
 base_directorio_mes <- readRDS(file.path(RUTA_SALIDA, "base_directorio_mes.rds"))
@@ -54,6 +55,10 @@ MEDIO  <- "#4292C6"
 
 # Etiquetas cortas para los ejes, para que no se salgan de la lamina.
 CORTAS <- c("Sin personas\nanalfabetas", "Con al menos una\npersona analfabeta")
+
+# Rotulos calculados, no escritos a mano: si cambia la base, cambian solos.
+num_lab <- function(z, dig) formatC(z, format = "f", digits = dig,
+                                    big.mark = ".", decimal.mark = ",")
 
 
 # ---------------------------------------------------------------------------
@@ -79,7 +84,11 @@ text(bp, as.vector(tt),
      paste0(format(as.vector(tt), big.mark = ".", decimal.mark = ",", trim = TRUE), "\n",
             format(round(as.vector(pct), 2), decimal.mark = ",", trim = TRUE), " %"),
      pos = 3, cex = 0.85, col = EJE)
-mtext("72.737 viviendas, sin ningun faltante. p estimado = 0,188226.",
+mtext(sprintf("%s viviendas, %s. p estimado = %s.",
+              num_lab(sum(tt), 0),
+              if (any(is.na(v4))) paste(num_lab(sum(is.na(v4)), 0), "faltantes")
+              else "sin ningun faltante",
+              num_lab(prop.table(tt)[[2]], 6)),
       side = 3, line = 0.3, cex = 0.8, col = EJE)
 dev.off()
 
@@ -126,23 +135,28 @@ tam <- ifelse(d$n_personas >= 6, "6 o mas", as.character(d$n_personas))
 tam <- factor(tam, levels = c("1", "2", "3", "4", "5", "6 o mas"))
 tp  <- table(v4, tam)
 p_con <- prop.table(tp, margin = 2)[2, ] * 100
+# Techo del eje: 60 % con los datos reales; sube de 10 en 10 solo si la barra
+# mas alta, con su rotulo encima, no cabe.
+TECHO <- max(60, 10 * ceiling((max(p_con, na.rm = TRUE) + 5) / 10))
 
 png(file.path(RUTA_G, "16_v4_por_tamano_hogar.png"),
     width = 1600, height = 1000, res = 180)
 par(mar = c(5.5, 7, 4.5, 2), col.axis = EJE, col.lab = EJE, las = 1,
     mgp = c(4.6, 0.9, 0))
 bp <- barplot(p_con, col = MEDIO, border = "white", space = 0.45,
-              ylim = c(0, 60), yaxt = "n",
+              ylim = c(0, TECHO), yaxt = "n",
               main = "Efecto mecanico del tamano de la vivienda",
               font.main = 1, cex.main = 1.05,
               xlab = "Personas en la vivienda",
               ylab = "Viviendas con al menos una persona analfabeta")
-axis(2, at = seq(0, 60, 10), labels = paste0(seq(0, 60, 10), " %"))
+axis(2, at = seq(0, TECHO, 10), labels = paste0(seq(0, TECHO, 10), " %"))
 text(bp, p_con, paste0(format(round(p_con, 1), decimal.mark = ",", trim = TRUE), " %"),
      pos = 3, cex = 0.8, col = EJE)
 text(bp, 0, paste0("n = ", format(colSums(tp), big.mark = ".", decimal.mark = ",", trim = TRUE)),
      pos = 3, cex = 0.68, col = "white")
-mtext("De 6,6 % a 53,5 %: es aritmetica de la regla de presencia, no un hallazgo social.",
+# Los extremos, redondeados igual que los rotulos de las barras.
+mtext(sprintf("De %s %% a %s %%: es aritmetica de la regla de presencia, no un hallazgo social.",
+              num_lab(round(p_con[[1]], 1), 1), num_lab(round(p_con[[length(p_con)]], 1), 1)),
       side = 3, line = 0.3, cex = 0.8, col = EJE)
 dev.off()
 
