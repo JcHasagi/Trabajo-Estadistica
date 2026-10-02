@@ -4,6 +4,7 @@
 #
 # Requisitos: ninguno. R base, sin paquetes.
 # Modo de uso: source() completo, o pegar bloque por bloque en la consola.
+# Insumo: salidas/base_directorio_mes.rds (generado por 01b_construccion_estilo_docente.R)
 # Salida: 4 PNG en salidas/graficos/ (numerados 10 a 13)
 #
 # NOTA DE FORMA - misma logica que V1 y por la misma razon:
@@ -11,9 +12,9 @@
 # de adultos de la vivienda. La diferencia con V1 es que V2 es TRIMODAL, con
 # el pico principal en 0,5: de las 31.159 viviendas con dos adultos, el 82,3%
 # son un hombre y una mujer. Un histograma con intervalos automaticos
-# escondiera que 0, 0,5 y 1 son valores puntuales, no rangos. Por eso el
-# grafico principal es de agujas y el histograma va aparte, con cortes
-# declarados.
+# esconderia que 0, 0,5 y 1 son valores puntuales, no rangos. Por eso el
+# grafico principal es de agujas y el histograma (grafico 11), con cortes
+# declarados, se produce como apoyo; no se incluye en el informe.
 # ============================================================================
 
 
@@ -31,8 +32,8 @@ options(scipen = 999)   # sin notacion cientifica: 400000, nunca 4e+05.
 
 RUTA        <- "."
 RUTA_SALIDA <- file.path(RUTA, "salidas")
-if (!dir.exists(RUTA_SALIDA))
-  stop("No encuentro la carpeta 'salidas/' desde el directorio de trabajo actual (",
+if (!file.exists(file.path(RUTA_SALIDA, "base_directorio_mes.rds")))
+  stop("No encuentro 'salidas/base_directorio_mes.rds' desde el directorio de trabajo actual (",
        getwd(), "). Corre antes 01b_construccion_estilo_docente.R.")
 
 base_directorio_mes <- readRDS(file.path(RUTA_SALIDA, "base_directorio_mes.rds"))
@@ -52,6 +53,14 @@ EJE     <- "#4D4D4D"
 
 # Azules secuenciales: el numero de adultos es ORDINAL, va de claro a oscuro.
 AZ <- c("#DEEBF7", "#9ECAE1", "#4292C6", "#08519C")
+
+# Rotulos calculados, no escritos a mano: si cambia la base, cambian solos.
+# La asimetria, con la misma convencion del script 03.
+pct_lab <- function(p, dig = 1) paste0(formatC(100 * p, format = "f", digits = dig,
+                                               decimal.mark = ","), " %")
+num_lab <- function(z, dig = 4) formatC(z, format = "f", digits = dig,
+                                        big.mark = ".", decimal.mark = ",")
+asim <- function(y){ y <- y[!is.na(y)]; mean((y - mean(y))^3) / sd(y)^3 }
 
 
 # ---------------------------------------------------------------------------
@@ -77,11 +86,13 @@ ay <- pretty(c(0, max(fre)))
 axis(2, at = ay, labels = format(ay, big.mark = ".", decimal.mark = ",", trim = TRUE))
 
 # Etiquetas directas solo en los tres modos.
-text(0.5, fre[abs(val - 0.5) < 1e-9], "39,2 %", pos = 3, cex = 0.8, col = EJE)
-text(1,   fre[val == 1],              "25,4 %", pos = 3, cex = 0.8, col = EJE)
-text(0,   fre[val == 0],              "13,6 %", pos = 3, cex = 0.8, col = EJE)
+text(0.5, fre[abs(val - 0.5) < 1e-9], pct_lab(mean(abs(x - 0.5) < 1e-9)),
+     pos = 3, cex = 0.8, col = EJE)
+text(1,   fre[val == 1],              pct_lab(mean(x == 1)), pos = 3, cex = 0.8, col = EJE)
+text(0,   fre[val == 0],              pct_lab(mean(x == 0)), pos = 3, cex = 0.8, col = EJE)
 
-mtext("26 valores distintos. Trimodal: el pico son viviendas de dos adultos con una sola mujer.",
+mtext(sprintf("%d valores distintos. Trimodal: el pico son viviendas de dos adultos con una sola mujer.",
+              length(tab)),
       side = 3, line = 0.3, cex = 0.8, col = EJE)
 dev.off()
 
@@ -112,8 +123,9 @@ abline(v = mean(x),   col = MEDIA,   lwd = 2)
 abline(v = median(x), col = MEDIANA, lwd = 2, lty = 2)
 legend("topright", bty = "n", lwd = 2, lty = c(1, 2), col = c(MEDIA, MEDIANA),
        cex = 0.85, text.col = EJE, inset = c(0.02, 0.02),
-       legend = c("media 0,5625", "mediana 0,5000"))
-mtext("Media a la derecha de la mediana, pero asimetria negativa (-0,13): efecto de la trimodalidad.",
+       legend = c(paste("media", num_lab(mean(x))), paste("mediana", num_lab(median(x)))))
+mtext(sprintf("Media a la derecha de la mediana, pero asimetria negativa (%s): efecto de la trimodalidad.",
+              num_lab(asim(x), 2)),
       side = 3, line = 0.3, cex = 0.8, col = EJE)
 dev.off()
 
@@ -134,7 +146,8 @@ plot(ecdf(x), verticals = TRUE, do.points = FALSE, lwd = 2.2, col = "#08519C",
 axis(1, at = seq(0, 1, 0.25), labels = c("0", "0,25", "0,50", "0,75", "1"))
 axis(2, at = seq(0, 1, 0.25), labels = c("0", "0,25", "0,50", "0,75", "1"))
 abline(h = 0.5, col = MEDIANA, lwd = 1.6, lty = 2)
-text(0.52, 0.42, "el escalon de 0,50 se lleva el 39,2 %:\nahi cae la mediana",
+text(0.52, 0.42, sprintf("el escalon de 0,50 se lleva el %s:\nahi cae la mediana",
+                         pct_lab(mean(abs(x - 0.5) < 1e-9))),
      pos = 4, cex = 0.78, col = EJE)
 dev.off()
 

@@ -4,6 +4,7 @@
 #
 # Requisitos: ninguno. R base, sin paquetes.
 # Modo de uso: pegar bloque por bloque en la consola de RStudio (Ctrl + 2).
+# Insumo: salidas/base_directorio_mes.rds (generado por 01b_construccion_estilo_docente.R)
 # Salida: PNG en salidas/graficos/
 #
 # Paleta: escala de grises para las barras y dos colores de la paleta
@@ -27,8 +28,8 @@ options(scipen = 999)   # sin notacion cientifica: 400000, nunca 4e+05.
 
 RUTA        <- "."
 RUTA_SALIDA <- file.path(RUTA, "salidas")
-if (!dir.exists(RUTA_SALIDA))
-  stop("No encuentro la carpeta 'salidas/' desde el directorio de trabajo actual (",
+if (!file.exists(file.path(RUTA_SALIDA, "base_directorio_mes.rds")))
+  stop("No encuentro 'salidas/base_directorio_mes.rds' desde el directorio de trabajo actual (",
        getwd(), "). Corre antes 01b_construccion_estilo_docente.R.")
 
 base_directorio_mes <- readRDS(file.path(RUTA_SALIDA, "base_directorio_mes.rds"))
@@ -40,6 +41,13 @@ dir.create(RUTA_G, showWarnings = FALSE, recursive = TRUE)
 v  <- d$arriendo_mensual_vivienda[!is.na(d$arriendo_mensual_vivienda)]
 lv <- d$log_arriendo_mensual[!is.na(d$log_arriendo_mensual)]
 cat("observaciones:", length(v), " (debe decir 29565)\n")
+
+# Rotulos calculados, no escritos a mano: si cambia la base, cambian solos.
+# Asimetria y curtosis con la misma convencion del script 03.
+asim <- function(y){ y <- y[!is.na(y)]; mean((y - mean(y))^3) / sd(y)^3 }
+curt <- function(y){ y <- y[!is.na(y)]; mean((y - mean(y))^4) / sd(y)^4 }
+num_lab <- function(z, dig) formatC(z, format = "f", digits = dig,
+                                    big.mark = ".", decimal.mark = ",")
 
 BARRA  <- "#BDBDBD"   # gris de las barras
 BORDE  <- "#FFFFFF"
@@ -84,7 +92,8 @@ hist(v, breaks = 60, col = BARRA, border = BORDE,
 eje_y_miles()
 axis(1, at = seq(0, 6e8, by = 1e8),
      labels = c("0","100 M","200 M","300 M","400 M","500 M","600 M"))
-mtext("29.565 viviendas. La primera barra concentra practicamente todo.",
+mtext(sprintf("%s viviendas. La primera barra concentra practicamente todo.",
+              num_lab(length(v), 0)),
       side = 3, line = 0.2, cex = 0.8, col = EJE)
 dev.off()
 
@@ -118,7 +127,9 @@ legend("topright", bty = "n", lwd = 2, lty = c(1, 2),
                   sprintf("mediana           $%s",
                           format(round(exp(median(lv))), big.mark = ".", decimal.mark = ",",
                                  scientific = FALSE, trim = TRUE))))
-mtext("Asimetria 0,24 y curtosis 6,97, frente a 117,6 y 15.678 en pesos.",
+mtext(sprintf("Asimetria %s y curtosis %s, frente a %s y %s en pesos.",
+              num_lab(asim(lv), 2), num_lab(curt(lv), 2),
+              num_lab(asim(v), 1), num_lab(curt(v), 0)),
       side = 3, line = 0.2, cex = 0.8, col = EJE)
 dev.off()
 
