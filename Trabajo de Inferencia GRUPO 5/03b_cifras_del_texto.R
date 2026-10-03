@@ -241,7 +241,7 @@ anotar("V4_valor_p_julio_mayo", "Analisis grafico",
 # Correlacion punto-biserial = correlacion de Pearson con la binaria en 0/1.
 anotar("V4_cor_V1_V4", "Descriptivos basicos",
        "correlacion punto-biserial entre V1 y V4",
-       cor(d$prop_educ_superior_18mas, y4, use = "complete.obs"), "num", "-0,153")
+       cor(d$prop_educ_superior_18mas, y4, use = "complete.obs"), "num", "\u{2212}0,153")
 # Por que la regla es de PRESENCIA y no de mayoria: con mayoria estricta
 # (mas de la mitad de las personas de 3 anios o mas son analfabetas) casi
 # ninguna vivienda caeria en la categoria de interes, y los empates exigirian
@@ -260,14 +260,17 @@ anotar("V4_viv_empate_mayoria", "Sintaxis de V4 (comentario del codigo)",
 #    forma en que la escribe el informe (conteos enteros, porcentajes con dos
 #    decimales, pesos redondeados y lo demas con seis decimales).
 # ---------------------------------------------------------------------------
+# Signo menos tipografico (U+2212), el mismo del informe y del 08.
+MENOS <- rawToChar(as.raw(c(0xe2, 0x88, 0x92))); Encoding(MENOS) <- "UTF-8"
 texto_cifra <- function(valor, tipo) {
   if (is.na(valor)) return("no definida")
-  switch(tipo,
+  txt <- switch(tipo,
     conteo = formatC(round(valor), format = "d", big.mark = ".", decimal.mark = ","),
     pct    = paste(formatC(valor, format = "f", digits = 2, decimal.mark = ","), "%"),
     pesos  = paste0("$", formatC(round(valor), format = "d", big.mark = ".",
                                  decimal.mark = ",")),
     formatC(valor, format = "f", digits = 6, big.mark = ".", decimal.mark = ","))
+  sub("^-", MENOS, txt)
 }
 cifras$valor_texto <- mapply(texto_cifra, cifras$valor, cifras$tipo)
 

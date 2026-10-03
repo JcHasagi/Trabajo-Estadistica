@@ -33,6 +33,13 @@ Con el trabajo se entregan además `salidas/fase3_distribuciones.rds` y los CSV
 `salidas/fase3_*.csv` de la ejecución que reporta el informe. No contienen microdatos, y como
 la simulación no fija semilla son la única forma de verificar sus cifras de Monte Carlo.
 
+> **PENDIENTE:** esos archivos se agregan después de correr `00_ejecutar_todo.R` con los
+> microdatos reales. Todas las cifras resaltadas del informe y las cuatro figuras de consistencia
+> deben salir de **una sola** corrida completa (08, 09 y 10 en la misma pasada). La clave
+> `fecha_ejecucion_08` de `fase3_valores_informe.csv` debe coincidir con `ej_fecha_08` de
+> `fase3_valores_informe_10.csv`. El `.gitignore` solo deja versionar `salidas/fase3_*`, nunca
+> las bases con una fila por vivienda.
+
 La calificación sigue una rúbrica de seis criterios de 5 puntos cada uno: selección de variables,
 uso de herramientas y un criterio por cada una de las cuatro variables.
 

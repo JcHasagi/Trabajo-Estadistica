@@ -46,6 +46,15 @@ CONTENIDO
   informe, que corresponden a la ejecucion guardada en
   salidas/fase3_distribuciones.rds.
 
+  PENDIENTE: estos archivos todavia no estan en el repositorio. Se agregan
+  despues de correr 00_ejecutar_todo.R con los microdatos reales. Todas las
+  cifras resaltadas del informe y las cuatro figuras de consistencia deben
+  salir de UNA sola corrida completa (08, 09 y 10 en la misma pasada); despues
+  no se vuelve a correr el 08 ni el 10. Para comprobarlo, la clave
+  fecha_ejecucion_08 de fase3_valores_informe.csv debe ser igual a la clave
+  ej_fecha_08 de fase3_valores_informe_10.csv. El archivo .gitignore de la
+  raiz del repositorio deja versionar solo salidas/fase3_* (nunca las bases).
+
 
 COMO EJECUTARLO
 -------------------------------------------------------------------------------
@@ -100,10 +109,10 @@ COMO EJECUTARLO
   indica. El 10 tambien se detiene si la base cambio desde que se corrio el
   08 (otro N u otra media).
 
-  En Linux o macOS, R debe correr con una configuracion regional UTF-8 (por
-  ejemplo LANG=es_CO.UTF-8 o C.UTF-8): con la configuracion "C" no puede leer
-  las tildes de los encabezados del 01b. En Windows con R >= 4.2 no hace falta
-  nada.
+  Los scripts estan escritos en ASCII, pero los nombres de los archivos del
+  DANE llevan tildes: en Linux o macOS conviene correr R con una configuracion
+  regional UTF-8 (por ejemplo LANG=es_CO.UTF-8 o C.UTF-8). En Windows con
+  R >= 4.2 no hace falta nada.
 
 
 COMO VERIFICAR LAS CIFRAS DEL INFORME
@@ -216,6 +225,8 @@ QUE COMPRUEBA EL CODIGO AL CORRER
     - La columna MES de algun archivo no trae el codigo esperado, 05, 06 o 07.
     - Los encabezados no son identicos en los tres meses.
     - Falta alguno de los campos requeridos, antes de seleccionar columnas.
+    - FEX_C18 tiene vacios o valores no numericos (el 01b imprime su suma por
+      mes, la cifra de 52,0 millones de personas que cita el informe).
     - Hay valores fuera del dominio del diccionario en P3042, P3039, P6160,
       POB_MAY18 o P5090.
     - Falla un salto de patron: la edad (P6040) tiene vacios o no es numerica;

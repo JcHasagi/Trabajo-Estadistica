@@ -11,10 +11,11 @@
 # V2 NO es continua. Toma 26 valores distintos y su denominador es el numero
 # de adultos de la vivienda. La diferencia con V1 es que V2 es TRIMODAL, con
 # el pico principal en 0,5: de las 31.159 viviendas con dos adultos, el 82,3%
-# son un hombre y una mujer. Un histograma con intervalos automaticos
-# esconderia que 0, 0,5 y 1 son valores puntuales, no rangos. Por eso el
-# grafico principal es de agujas y el histograma (grafico 11), con cortes
-# declarados, se produce como apoyo; no se incluye en el informe.
+# tiene exactamente una mujer (en casi todas, un hombre y una mujer). Un
+# histograma con intervalos automaticos esconderia que 0, 0,5 y 1 son
+# valores puntuales, no rangos. Por eso el grafico principal es de agujas y
+# el histograma (grafico 11), con cortes declarados, se produce como apoyo;
+# no se incluye en el informe.
 # ============================================================================
 
 

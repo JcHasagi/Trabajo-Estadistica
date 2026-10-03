@@ -33,7 +33,10 @@
 #    cada replica se extrae, CON reemplazo, una muestra del MISMO tamano que
 #    el conjunto analitico de la variable (N = numero de viviendas con dato).
 #    Con reemplazo cada extraccion es i.i.d. de la distribucion poblacional y
-#    Var(media) = sigma^2/N exactamente, de modo que la simulacion se contrasta
+#    Var(media) = sigma2_pob/N, con sigma2_pob = var() * (N-1)/N la varianza
+#    de la base con divisor N. El trabajo usa var() (divisor N-1) como sigma^2:
+#    la diferencia es un factor 1/N (1,4 x 10^-5 con N = 72.649), despreciable
+#    frente al error de Monte Carlo, de modo que la simulacion se contrasta
 #    contra la teoria y contra el error estandar del intervalo. El reemplazo
 #    es obligatorio: sin reemplazo y con n = N cada replica seria la base
 #    completa reordenada, y la media y la mediana saldrian identicas en todas.
@@ -376,6 +379,10 @@ for (v in names(POB)) {
       mse_mediana_vs_mu   = mse_md,
       razon_var           = if (var(ms) > 0) var(md) / var(ms) else NA,
       razon_mse           = if (mse_ms > 0) mse_md / mse_ms else NA,
+      # Replicas en que la mediana muestral NO fue la poblacional. Cuando son
+      # pocas (V3), var_mediana depende solo de ellas: ver punto 4 de la
+      # seccion 5.
+      n_med_distinta      = sum(md != MED),
       row.names = NULL))
     cat(sprintf("  %s  N=%5d  B=%5d  listo  (%.0f s acumulados)\n",
                 v, N, B, as.numeric(difftime(Sys.time(), t0, units = "secs"))))
@@ -386,8 +393,9 @@ t_sim <- as.numeric(difftime(Sys.time(), t0, units = "mins"))
 
 # Se guardan las distribuciones: de aqui leen el 09, el 10 y cualquier
 # revision. Asi los graficos muestran exactamente las replicas de las tablas.
+FECHA_SIM <- Sys.time()
 saveRDS(list(distribuciones = DIST, parametros = PARAM, resumen = sim,
-             BS = BS, fecha = Sys.time(), version_R = R.version.string),
+             BS = BS, fecha = FECHA_SIM, version_R = R.version.string),
         file.path(RUTA_S, "fase3_distribuciones.rds"))
 write.csv2(sim, file.path(RUTA_S, "fase3_simulacion.csv"), row.names = FALSE)
 
@@ -406,8 +414,9 @@ for (v in names(POB)) {
   print(format(z[, c("B","prom_media","sesgo_media","err_MC_media",
                      "de_media","ee_teorico","var_x_N")],
                digits = 6, scientific = FALSE), row.names = FALSE)
-  cat(sprintf("     mu = %.6f   sigma^2 = var() de la base = %.6f  (var_x_N debe acercarse a este valor)\n",
+  cat(sprintf("     mu = %.6f   sigma^2 = var() de la base = %.6f  (var_x_N debe acercarse a este valor;\n",
               pv$media, pv$sigma2))
+  cat("     con reemplazo su valor esperado exacto es sigma^2 (N-1)/N, que difiere en 1/N)\n")
   z10 <- z[z$B == B_EVAL, ]
   cat(sprintf("  b) INSESGAMIENTO Y EFICIENCIA, cada estimador frente a SU PROPIO parametro, B = %s\n",
               B_txt))
@@ -487,6 +496,7 @@ fmt_informe <- function(x, tipo = "num") {
     entero = formatC(round(a), format = "d", big.mark = ".", decimal.mark = ","),
     pct    = paste0(coma(100 * a, 2), " %"),
     razon  = coma(a, 1),
+    razon2 = coma(a, 2),
     num    = if (a == 0) "0" else if (signif(a, 3) >= 0.001) coma(a, 6) else
                pot10(log10(signif(a, 3))))
   if (grepl("^0[,0]*( %)?$", txt)) signo <- ""   # sin "-0,0"
@@ -553,8 +563,9 @@ COLS_SIM <- c(
   sesgo_mediana_vs_mu = "num|sesgo de la mediana frente a mu: prom_mediana - mu",
   mse_media_vs_mu     = "num|ECM de la media frente a mu",
   mse_mediana_vs_mu   = "num|ECM de la mediana frente a mu",
-  razon_var           = "razon|var_mediana / var_media",
-  razon_mse           = "razon|mse_mediana_vs_mu / mse_media_vs_mu")
+  razon_var           = "razon2|var_mediana / var_media (2 decimales: decide de que lado de 1 queda)",
+  razon_mse           = "razon|mse_mediana_vs_mu / mse_media_vs_mu",
+  n_med_distinta      = "entero|replicas en que la mediana muestral NO fue la mediana poblacional")
 for (i in seq_len(nrow(sim))) {
   z <- sim[i, ]
   pref <- paste0(z$variable, "_B", z$B, "_")
@@ -565,9 +576,15 @@ for (i in seq_len(nrow(sim))) {
     VAL <- rbind(VAL, fila_val(paste0(pref, cc), z[[cc]], partes[1],
                                paste0(partes[2], txtB)))
   }
-  VAL <- rbind(VAL, fila_val(paste0(pref, "sesgo_en_err_MC"),
-                             z$sesgo_media / z$err_MC_media, "razon",
-                             paste0("sesgo_media medido en errores de Monte Carlo", txtB)))
+  VAL <- rbind(VAL,
+    fila_val(paste0(pref, "sesgo_en_err_MC"),
+             z$sesgo_media / z$err_MC_media, "razon",
+             paste0("sesgo_media medido en errores de Monte Carlo (para decidir",
+                    " un umbral, usar valor_num, sin redondeo)", txtB)),
+    fila_val(paste0(pref, "n_med_distinta_esperado"),
+             z$B * PARAM$p_teor_med_distinta[PARAM$variable == z$variable], "razon",
+             paste0("numero esperado de replicas con la mediana distinta de la",
+                    " poblacional: B * p_teor_med_distinta", txtB)))
 }
 
 # --- sigma^2 de V1, V2 y V3 -------------------------------------------------
@@ -625,6 +642,17 @@ for (B in BS) {
 VAL <- rbind(VAL,
   fila_val("criterio_B_min", ceiling(Z^2 * 0.95 * 0.05 / 0.005^2), "entero",
            "B minimo para un error de 0,5 pp con el criterio del docente"))
+
+# --- Fecha de esta ejecucion ------------------------------------------------
+# La misma que queda en salidas/fase3_distribuciones.rds ($fecha). El 10
+# escribe la del .rds que leyo con la clave ej_fecha_08: si las dos no
+# coinciden, el 08 se volvio a correr despues del 10 y los dos archivos de
+# valores ya no son de la misma ejecucion.
+FECHA_TXT <- format(FECHA_SIM, "%Y-%m-%d %H:%M:%OS3")
+VAL <- rbind(VAL,
+  fila_val("fecha_ejecucion_08", NA, "num",
+           "fecha y hora de esta ejecucion del 08 (la de salidas/fase3_distribuciones.rds)",
+           valor = FECHA_TXT))
 
 # --- Escritura en UTF-8 -----------------------------------------------------
 # write.csv2 traduciria los simbolos a la codificacion de la sesion; por eso
@@ -690,12 +718,20 @@ cat("     ", paste(sprintf("%s %s", z10_todas$variable, coma(z10_todas$razon_mse
                    collapse = " - "), "\n")
 cat("   Esa es la comparacion honesta y la que hay que comentar.\n\n")
 z3 <- z10_todas[z10_todas$variable == "V3", ]
-cat(sprintf("4. V3 (escala log), B = %s: la varianza de la mediana es %s que la de\n",
-            B_txt, if (isTRUE(z3$var_mediana < z3$var_media)) "MENOR" else "MAYOR"))
-cat(sprintf("   la media (razon var_mediana / var_media = %s; mediana igual a la\n",
+p3 <- PARAM[PARAM$variable == "V3", ]
+cat(sprintf("4. V3 (escala log), B = %s: la mediana muestral fue distinta de la\n", B_txt))
+cat(sprintf("   poblacional en %d replicas (se esperaban %s = B * p_teor). Su varianza\n",
+            z3$n_med_distinta, coma(B_EVAL * p3$p_teor_med_distinta, 1)))
+cat(sprintf("   (%s) la producen SOLO esas replicas, de modo que la razon\n",
+            format(signif(z3$var_mediana, 3), scientific = TRUE, decimal.mark = ",")))
+cat(sprintf("   var_mediana / var_media = %s cambia mucho de una ejecucion a otra: con\n",
             coma(z3$razon_var, 2)))
-cat(sprintf("   poblacional en el %s de las replicas). Si es MENOR, es porque la\n",
-            pct_txt(z3$prop_med_igual_pob)))
-cat("   mediana queda casi fija en el monto con masa puntual; si es MAYOR, se\n")
-cat("   debe a los saltos entre montos declarados. En ningun caso es la razon\n")
-cat("   pi/2 de la teoria clasica, que supone densidad continua en la mediana.\n")
+cat("   k replicas su error relativo es del orden de 1/raiz(k), y puede quedar a\n")
+cat("   cualquier lado de 1 (el 10 lo muestra con tres ejecuciones). No permite\n")
+if (z3$n_med_distinta > 0)
+  cat(sprintf("   ordenar los estimadores: aqui, 1/raiz(k) = %s.\n",
+              coma(1 / sqrt(z3$n_med_distinta), 2))) else
+  cat("   ordenar los estimadores.\n")
+cat("   Tampoco es la razon pi/2 de la teoria clasica, que supone densidad continua\n")
+cat("   en la mediana. La comparacion estable es el ECM frente a mu (punto 3),\n")
+cat("   dominado por el sesgo de la mediana, que no depende de la ejecucion.\n")

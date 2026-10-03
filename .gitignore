@@ -1,0 +1,18 @@
+# Salidas del codigo: solo se versionan los resultados de la fase 3
+# (fase3_*), nunca las bases con una fila por vivienda (base_*).
+Trabajo de Inferencia GRUPO 5/salidas/*
+!Trabajo de Inferencia GRUPO 5/salidas/fase3_*
+!Trabajo de Inferencia GRUPO 5/salidas/graficos/
+Trabajo de Inferencia GRUPO 5/salidas/graficos/*
+!Trabajo de Inferencia GRUPO 5/salidas/graficos/1[7-9]_consistencia_*.png
+!Trabajo de Inferencia GRUPO 5/salidas/graficos/20_consistencia_*.png
+
+# Microdatos del DANE y archivos temporales
+Trabajo de Inferencia GRUPO 5/Mayo 2025/
+Trabajo de Inferencia GRUPO 5/Junio 2025/
+Trabajo de Inferencia GRUPO 5/Julio 2025/
+Rplots.pdf
+.Rhistory
+.RData
+.Rproj.user/
+~$*
